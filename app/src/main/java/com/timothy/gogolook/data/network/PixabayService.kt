@@ -8,14 +8,15 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 
-const val IMAGE_SEARCH_INITIAL_KEY = 0L
-const val IMAGE_SEARCH_PAGE_SIZE = 30
+const val IMAGE_SEARCH_INITIAL_KEY = 1
+const val IMAGE_SEARCH_PAGE_SIZE = 50
 
 interface PixabayService {
     @GET("/api?")
     fun getImages(
         @Query("q") query:String,
-//        @Query("page") page:Int,
+        @Query("page") page:Int,
+        @Query("per_page") perPage:Int = IMAGE_SEARCH_PAGE_SIZE,
         @Query("key") key: String= KEY
     ): Single<Response<PixabaySearchResponse>>
 

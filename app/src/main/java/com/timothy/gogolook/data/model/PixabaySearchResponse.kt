@@ -65,7 +65,7 @@ data class HitsItem(
 	val pageURL: String? = null,
 
 	@field:SerializedName("id")
-	val id: Int? = null,
+	val id: Int,
 
 	@field:SerializedName("imageSize")
 	val imageSize: Int? = null,

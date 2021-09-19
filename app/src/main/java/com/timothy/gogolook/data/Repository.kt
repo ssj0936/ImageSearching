@@ -9,6 +9,6 @@ import javax.inject.Inject
 class Repository @Inject constructor(
     private val pixabayService: PixabayService
 ){
-    fun getSearchImages(searchTerms:String): Single<Response<PixabaySearchResponse>>
-        = pixabayService.getImages(searchTerms)
+    fun getSearchImages(searchTerms:String, page:Int = 1): Single<Response<PixabaySearchResponse>>
+        = pixabayService.getImages(searchTerms,page)
 }

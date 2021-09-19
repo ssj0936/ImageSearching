@@ -3,17 +3,13 @@ package com.timothy.gogolook.ui
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.paging.LivePagedListBuilder
+import androidx.paging.PagedList
 import com.timothy.gogolook.data.Repository
-import com.timothy.gogolook.data.model.HitsItem
-import com.timothy.gogolook.data.model.PixabaySearchResponse
-import com.timothy.gogolook.data.model.ResultOf
+import com.timothy.gogolook.data.model.*
+import com.timothy.gogolook.ui.adapters.ImageSearchResultDataSourceFactory
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.rxkotlin.addTo
-import io.reactivex.rxkotlin.subscribeBy
-import io.reactivex.schedulers.Schedulers
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,30 +18,35 @@ class MainViewModel @Inject constructor(
 ): ViewModel() {
     private val compositeDisposable = CompositeDisposable()
 
-    val imagesSearchResult:LiveData<ResultOf<List<HitsItem>>>
-        get() = _imagesSearchResult
-    private val _imagesSearchResult = MutableLiveData<ResultOf<List<HitsItem>>>()
+    val loadStatus : LiveData<LoadingStatus>
+        get() = _loadStatus
+    private val _loadStatus = LoadingStatusMutableLiveData().apply {
+        setLoadingFinish()
+    }
 
-    fun searchImages(searchTerms:String){
-        repository.getSearchImages(searchTerms)
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribeBy (
-                onSuccess = { response ->
-                    if(response.isSuccessful){
-                        val result = response.body() as PixabaySearchResponse
-                        if(result.hits!=null){
-                            _imagesSearchResult.value = ResultOf.Success(result.hits)
-                        }
-                    }else{
-                        _imagesSearchResult.value = ResultOf.Failure("error please retry")
-                    }
-                },
-                onError = { error ->
-                    Timber.d("ERROR loadInitial: $error")
-                }
-            )
-            .addTo(compositeDisposable)
+    private val searchTerms = MutableLiveData<String>().apply {
+        value = "flower yellow"
+    }
+    private val dataSourceFactory:ImageSearchResultDataSourceFactory =
+        ImageSearchResultDataSourceFactory(repository, compositeDisposable, searchTerms, _loadStatus)
+    val pagedList: LiveData<PagedList<HitsItem>>
+    init {
+
+        val config = PagedList.Config.Builder()
+            .setEnablePlaceholders(false)
+            .setPrefetchDistance(5)
+            .build()
+
+        pagedList = LivePagedListBuilder(dataSourceFactory, config).build()
+    }
+
+    fun updateSearchTerms(terms:String){
+        searchTerms.value = terms
+        pagedList.value?.dataSource?.invalidate()
+    }
+
+    fun retry(){
+        dataSourceFactory.dataSource.retry()
     }
 
     override fun onCleared() {

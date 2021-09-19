@@ -15,7 +15,7 @@ import javax.inject.Singleton
 object Module {
     @Singleton
     @Provides
-    fun provideGithubService() : PixabayService{
+    fun providePixabayService() : PixabayService{
         val baseURL = "https://pixabay.com/"
 
         return Retrofit.Builder()

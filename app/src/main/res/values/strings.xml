@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">gogolook</string>
+
+    <string name="image_info_id">Id:%d</string>
+    <string name="image_info_tags">Tags:%s</string>
+    <string name="image_info_views">Views:%d</string>
+    <string name="image_info_downloads">Downloads:%d</string>
+    <string name="image_info_likes">Likes:%d</string>
 </resources>
