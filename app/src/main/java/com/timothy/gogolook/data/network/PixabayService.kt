@@ -19,5 +19,4 @@ interface PixabayService {
         @Query("per_page") perPage:Int = IMAGE_SEARCH_PAGE_SIZE,
         @Query("key") key: String= KEY
     ): Single<Response<PixabaySearchResponse>>
-
 }

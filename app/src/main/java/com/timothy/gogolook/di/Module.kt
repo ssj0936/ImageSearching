@@ -1,5 +1,8 @@
 package com.timothy.gogolook.di
 
+import com.timothy.gogolook.MainApp.Companion.appContext
+import com.timothy.gogolook.data.SearchTermsHistoryService
+import com.timothy.gogolook.data.local.SearchTermsHistoryLocal
 import com.timothy.gogolook.data.network.PixabayService
 import dagger.Module
 import dagger.Provides
@@ -15,7 +18,7 @@ import javax.inject.Singleton
 object Module {
     @Singleton
     @Provides
-    fun providePixabayService() : PixabayService{
+    fun providePixabayService(): PixabayService {
         val baseURL = "https://pixabay.com/"
 
         return Retrofit.Builder()
@@ -24,5 +27,11 @@ object Module {
             .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .build()
             .create(PixabayService::class.java)
+    }
+
+    @Singleton
+    @Provides
+    fun provideSearchTermsHistoryService(): SearchTermsHistoryService {
+        return SearchTermsHistoryLocal(appContext)
     }
 }
