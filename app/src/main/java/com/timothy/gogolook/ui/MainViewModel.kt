@@ -25,11 +25,13 @@ class MainViewModel @Inject constructor(
     val loadStatus : LiveData<LoadingStatus>
         get() = _loadStatus
     private val _loadStatus = LoadingStatusMutableLiveData().apply {
-        setLoadingFinish()
+        setSuccess()
     }
 
     //recording current search terms
-    private val searchTerms = MutableLiveData<String>().apply {
+    val searchTerms : LiveData<String>
+        get() = _searchTerms
+    private val _searchTerms = MutableLiveData<String>().apply {
         value = "flower yellow"
     }
 
@@ -39,34 +41,30 @@ class MainViewModel @Inject constructor(
 
     //paged recyclerview setup
     private val dataSourceFactory:ImageSearchResultDataSourceFactory =
-        ImageSearchResultDataSourceFactory(repository, compositeDisposable, searchTerms, _loadStatus)
+        ImageSearchResultDataSourceFactory(repository, compositeDisposable, _searchTerms, _loadStatus)
     val pagedList: LiveData<PagedList<HitsItem>>
 
     init {
         initSearchTermsHistory()
 
         //searchTermsHistory listen for update of searchTerms
-        searchTermsHistory.addSource(searchTerms){
+        searchTermsHistory.addSource(_searchTerms){
             val tmpTermsList = searchTermsHistory.value ?: LinkedList()
             val index = tmpTermsList.indexOf(it)
 
             //not found, push into queue
             if(index == -1){
                 tmpTermsList.offer(it)
-                //pop those element out of range
-                while(tmpTermsList.size > HISTORY_MAX_SIZE)
-                    tmpTermsList.poll()
-
-                searchTermsHistory.value = tmpTermsList
             }else{
                 tmpTermsList.remove(tmpTermsList.elementAt(index))
                 tmpTermsList.offer(it)
-                //pop those element out of range
-                while(tmpTermsList.size > HISTORY_MAX_SIZE)
-                    tmpTermsList.poll()
-
-                searchTermsHistory.value = tmpTermsList
             }
+            //pop those element out of range
+            while(tmpTermsList.size > HISTORY_MAX_SIZE)
+                tmpTermsList.poll()
+
+            searchTermsHistory.value = tmpTermsList
+
             //save the history
             saveSearchTermsHistory()
         }
@@ -91,7 +89,7 @@ class MainViewModel @Inject constructor(
     }
 
     fun updateSearchTerms(terms:String){
-        searchTerms.value = terms
+        _searchTerms.value = terms
         pagedList.value?.dataSource?.invalidate()
     }
 

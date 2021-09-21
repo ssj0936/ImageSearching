@@ -9,6 +9,7 @@ import androidx.viewbinding.ViewBinding
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.databinding.RecyclerviewImageSearchResultItemGridBinding
 import com.timothy.gogolook.databinding.RecyclerviewImageSearchResultItemLineBinding
+import com.timothy.gogolook.ui.DEFAULT_LAYOUT_TYPE
 
 const val LAYOUT_TYPE_LINEAR = 1
 const val LAYOUT_TYPE_GRID = 2
@@ -16,7 +17,7 @@ const val LAYOUT_TYPE_GRID = 2
 class ImageSearchResultListAdapter: PagedListAdapter<HitsItem, ImageSearchResultListAdapter.ImageSearchResultListViewHolder>(
     ImageSearchResultListDiffCallback()
 ) {
-    var layout:LayoutType = LayoutType.Linear
+    var layout:LayoutType = DEFAULT_LAYOUT_TYPE
         private set
 
     class ImageSearchResultListViewHolder(

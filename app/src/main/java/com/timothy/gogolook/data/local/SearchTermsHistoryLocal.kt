@@ -11,16 +11,15 @@ import java.util.*
 class SearchTermsHistoryLocal(
     private val context: Context
 ):SearchTermsHistoryService {
+    val separator = ",,"
 
     override fun saveHistoryTerms(termsList:Queue<String>,size:Int){
-        while (termsList.size>size) {
-            val pop = termsList.poll()
-            Timber.d("pop:$pop")
-        }
+        while (termsList.size>size)
+            termsList.poll()
 
         context.getSharedPreferences(HISTORY_PREF_KEY,MODE_PRIVATE)
             .edit()
-            .putString(HISTORY_PREF_VALUE, termsList.joinToString(separator = ",,"))
+            .putString(HISTORY_PREF_VALUE, termsList.joinToString(separator = separator))
             .commit()
     }
 
@@ -32,7 +31,7 @@ class SearchTermsHistoryLocal(
 
         return if(historyTermsString.isNullOrEmpty()) queue
         else{
-            historyTermsString.split(",,").forEach {
+            historyTermsString.split(separator).forEach {
                 queue.offer(it)
             }
             queue

@@ -8,7 +8,7 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 
-const val IMAGE_SEARCH_INITIAL_KEY = 1
+const val IMAGE_SEARCH_INITIAL_PAGE = 1
 const val IMAGE_SEARCH_PAGE_SIZE = 50
 
 interface PixabayService {

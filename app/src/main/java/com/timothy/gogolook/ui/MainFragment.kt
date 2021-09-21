@@ -2,9 +2,7 @@ package com.timothy.gogolook.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.os.Build
 import android.os.Bundle
-import android.util.DisplayMetrics
 import android.view.*
 import androidx.fragment.app.Fragment
 import android.view.inputmethod.EditorInfo
@@ -20,7 +18,9 @@ import com.timothy.gogolook.ui.adapters.ImageSearchResultListAdapter
 import com.timothy.gogolook.ui.adapters.LayoutType
 import com.timothy.gogolook.util.windowWidth
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
+import com.google.android.material.snackbar.Snackbar
+
+val DEFAULT_LAYOUT_TYPE:LayoutType = LayoutType.Linear
 
 @AndroidEntryPoint
 class MainFragment : Fragment(), View.OnClickListener{
@@ -28,7 +28,9 @@ class MainFragment : Fragment(), View.OnClickListener{
     private val mainViewModel: MainViewModel by viewModels()
     lateinit var binding :MainFragmentBinding
 
+    //adapter for searching result
     private val searchResultAdapter = ImageSearchResultListAdapter()
+    //adapter for history search terms
     private lateinit var historySearchTermsAdapter:ArrayAdapter<String>
 
     private val gridLayoutManager:GridLayoutManager by lazy {
@@ -37,15 +39,14 @@ class MainFragment : Fragment(), View.OnClickListener{
 
         GridLayoutManager(requireContext(), (width/gridWidth).toInt())
     }
+
     private val linearLayoutManager:LinearLayoutManager by lazy {
-        LinearLayoutManager(requireContext())
+        LinearLayoutManager(requireContext()).apply {
+            orientation = LinearLayoutManager.VERTICAL
+        }
     }
 
-    private val imeService:InputMethodManager by lazy {
-        requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-    }
-
-    private var isGrid:Boolean? = null
+    private var isGrid:Boolean = DEFAULT_LAYOUT_TYPE is LayoutType.Grid
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -61,11 +62,9 @@ class MainFragment : Fragment(), View.OnClickListener{
         with(binding){
             //recyclerView
             recyclerView.adapter = searchResultAdapter
-            recyclerView.layoutManager = LinearLayoutManager(requireContext()).apply {
-                orientation = LinearLayoutManager.VERTICAL
-            }
+            recyclerView.layoutManager = if(isGrid) gridLayoutManager else linearLayoutManager
 
-            //button settings
+            //layout button group settings
             with(displayBtnGroup){
                 addOnButtonCheckedListener { _, checkedId, _ ->
                     if (checkedId == R.id.display_type_list) {
@@ -74,7 +73,8 @@ class MainFragment : Fragment(), View.OnClickListener{
                         toggleRecyclerViewLayout(true)
                 }
 
-                check(if(isGrid==true) R.id.display_type_grid else R.id.display_type_list)
+                //init default selection
+                check(if(isGrid) R.id.display_type_grid else R.id.display_type_list)
             }
 
             //search terms editText
@@ -95,40 +95,53 @@ class MainFragment : Fragment(), View.OnClickListener{
                 }
             }
 
+            //history search terms
             historySearchTermsAdapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_dropdown_item_1line)
             searchTermInput.setAdapter(historySearchTermsAdapter)
             searchTermInput.threshold = 0
-            searchTermInput.setOnItemClickListener { adapterView, view, i, l ->
+            searchTermInput.setOnItemClickListener { _, _, _, _ ->
                 submitSearchTerms()
             }
 
+            //retry button for fetching data fail
             btnRetry.setOnClickListener(this@MainFragment)
+
+
         }
 
         mainViewModel.pagedList.observe(viewLifecycleOwner){
             searchResultAdapter.submitList(it)
         }
 
-        mainViewModel.loadStatus.observe(viewLifecycleOwner){
+        mainViewModel.loadStatus.observe(viewLifecycleOwner){ loadingStatus ->
+            //showing snackbar for error message
+            loadingStatus.message?.let {
+                Snackbar.make(
+                    requireActivity().findViewById(android.R.id.content),
+                    it,
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
+
             binding.progressBar.visibility =
-                if(it is LoadingStatus.LOADING) View.VISIBLE else View.GONE
+                if(loadingStatus is LoadingStatus.Loading) View.VISIBLE else View.GONE
 
             binding.btnRetry.visibility =
-                if(it is LoadingStatus.ERROR) View.VISIBLE else View.GONE
+                if(loadingStatus is LoadingStatus.Error) View.VISIBLE else View.GONE
         }
 
-        mainViewModel.searchTermsHistory.observe(viewLifecycleOwner){
-            historySearchTermsAdapter = ArrayAdapter<String>(
-                requireContext(),
-                android.R.layout.simple_dropdown_item_1line,
-                it.toList().asReversed()
-            )
-            binding.searchTermInput.setAdapter(historySearchTermsAdapter)
+        mainViewModel.searchTermsHistory.observe(viewLifecycleOwner){ queue ->
+            historySearchTermsAdapter.run {
+                clear()
+                queue.toList().asReversed().forEach { historySearchTermsAdapter.add(it) }
+                notifyDataSetChanged()
+            }
         }
     }
 
     private fun submitSearchTerms(){
         //hide ime
+        val imeService = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imeService.hideSoftInputFromWindow(view?.windowToken ?: return, 0)
 
         //submit terms
@@ -143,7 +156,7 @@ class MainFragment : Fragment(), View.OnClickListener{
         val lastFirstVisiblePosition =
             (binding.recyclerView.layoutManager as LinearLayoutManager).findFirstCompletelyVisibleItemPosition()
 
-        if(this.isGrid==true){
+        if(this.isGrid){
             binding.recyclerView.layoutManager = gridLayoutManager.also {
                 it.scrollToPosition(lastFirstVisiblePosition)
             }
@@ -156,8 +169,7 @@ class MainFragment : Fragment(), View.OnClickListener{
 
     private fun updateSearchTermsInput(){
         binding.searchTermInput.text?.trim().toString().replace("\\s+","+").let {
-            Timber.d(it)
-            if (it.isNotBlank() && mainViewModel.loadStatus.value !is LoadingStatus.LOADING) {
+            if (it.isNotBlank() && mainViewModel.loadStatus.value !is LoadingStatus.Loading) {
                 mainViewModel.updateSearchTerms(it)
             }
         }

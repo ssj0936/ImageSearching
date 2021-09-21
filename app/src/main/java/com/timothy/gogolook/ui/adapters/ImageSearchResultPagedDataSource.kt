@@ -6,7 +6,7 @@ import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.data.model.LoadingStatusMutableLiveData
 import com.timothy.gogolook.data.model.PixabaySearchResponse
-import com.timothy.gogolook.data.network.IMAGE_SEARCH_INITIAL_KEY
+import com.timothy.gogolook.data.network.IMAGE_SEARCH_INITIAL_PAGE
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.addTo
@@ -34,7 +34,7 @@ class ImageSearchResultPagedDataSource (
 
         searchTerms.value?.let{
             loadStatus.setLoading()
-            repository.getSearchImages(it,IMAGE_SEARCH_INITIAL_KEY)
+            repository.getSearchImages(it,IMAGE_SEARCH_INITIAL_PAGE)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeBy(
@@ -42,18 +42,20 @@ class ImageSearchResultPagedDataSource (
                         if(response.isSuccessful){
                             val result = response.body() as PixabaySearchResponse
                             if(result.hits!=null){
-                                callback.onResult(result.hits,null,IMAGE_SEARCH_INITIAL_KEY+1)
+                                callback.onResult(result.hits,null,IMAGE_SEARCH_INITIAL_PAGE+1)
+                                loadStatus.setSuccess()
                             }else{
                                 Timber.d("ERROR loadInitial: null list")
+                                loadStatus.setError("ERROR loadInitial: null list")
                             }
                         }else{
                             Timber.d("ERROR loadInitial: response fail")
+                            loadStatus.setError("ERROR loadInitial: response fail")
                         }
-                        loadStatus.setLoadingFinish()
                     },
                     onError = { error ->
                         Timber.d("ERROR loadInitial: $error")
-                        loadStatus.setError()
+                        loadStatus.setError("ERROR loadInitial: $error")
                     }
                 )
                 .addTo(compositeDisposable)
@@ -78,17 +80,20 @@ class ImageSearchResultPagedDataSource (
                             val result = response.body() as PixabaySearchResponse
                             if (result.hits != null) {
                                 callback.onResult(result.hits, params.key + 1)
+                                loadStatus.setSuccess()
                             }else{
                                 Timber.d("ERROR loadInitial: null list")
+                                loadStatus.setError("ERROR loadInitial: null list")
                             }
                         } else {
                             Timber.d("ERROR loadAfter: response fail")
+                            loadStatus.setError("ERROR loadAfter: response fail")
+
                         }
-                        loadStatus.setLoadingFinish()
                     },
                     onError = { error ->
                         Timber.d("ERROR loadAfter: $error")
-                        loadStatus.setError()
+                        loadStatus.setError("ERROR loadAfter: $error")
                     }
                 )
                 .addTo(compositeDisposable)
