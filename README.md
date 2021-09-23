@@ -26,3 +26,6 @@ The app has following packages:
 5. Setting **@BindingAdapter** for binding image's url to imageview with Glide make it less redundent boilerplate in code.
 6. **Navigation** is just a routine for single Activity app and considering of flexibility need but not necessary currently.
 7. Default value like: HISTORY_MAX_SIZE(history display number), IMAGE_SEARCH_PAGE_SIZE(images fetching page size) and DEFAULT_LAYOUT_TYPE(default image list layout) are in Constants.kt
+
+### DEMO apk download
+https://www.dropbox.com/s/bdovpj0wcmv9mn9/image_searching.apk?dl=0
