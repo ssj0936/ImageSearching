@@ -1,4 +1,9 @@
 # Image Searching
+<p>
+<img src="https://user-images.githubusercontent.com/3841546/134450008-927215bb-c80e-49a0-a93a-3df87116f4d5.png" width="270" height="612">
+<img src="https://user-images.githubusercontent.com/3841546/134450004-40f40890-f07b-4f7b-9e01-cbcc3880d85b.png" width="270" height="612">
+<img src="https://user-images.githubusercontent.com/3841546/134450007-98d3be92-65c9-496c-8fa9-51bb7b07bb9e.png" width="270" height="612">
+</p>
 
 A simple app for user to search images from webapi(pixabay) and providing 2 type of displaymode which are grip and list.
 Implementation of MVVM architecture using Hilt, Paging, RxJava and Retrofit2
