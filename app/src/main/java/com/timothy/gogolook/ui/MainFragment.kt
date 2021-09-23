@@ -98,15 +98,20 @@ class MainFragment : Fragment(), View.OnClickListener{
             //history search terms
             historySearchTermsAdapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_dropdown_item_1line)
             searchTermInput.setAdapter(historySearchTermsAdapter)
-            searchTermInput.threshold = 0
+            searchTermInput.threshold = 1
             searchTermInput.setOnItemClickListener { _, _, _, _ ->
                 submitSearchTerms()
             }
 
+            searchTermInput.setOnTouchListener { _, _ ->
+                if(!historySearchTermsAdapter.isEmpty && !searchTermInput.isPopupShowing)
+                    searchTermInput.showDropDown()
+
+                false
+            }
+
             //retry button for fetching data fail
             btnRetry.setOnClickListener(this@MainFragment)
-
-
         }
 
         mainViewModel.pagedList.observe(viewLifecycleOwner){

@@ -48,8 +48,8 @@
         android:layout_marginBottom="@dimen/margin_small"
         android:hint="Search term"
         style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"
-        app:endIconTint="@color/background_color">
-        <AutoCompleteTextView
+        app:endIconMode="none">
+        <com.timothy.gogolook.ui.widget.HistoryEditText
             android:id="@+id/search_term_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
