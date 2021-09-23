@@ -1,15 +1,12 @@
 package com.timothy.gogolook.data.network
 
 import com.timothy.gogolook.data.model.PixabaySearchResponse
+import com.timothy.gogolook.util.IMAGE_SEARCH_PAGE_SIZE
 import com.timothy.gogolook.util.KEY
 import io.reactivex.Single
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
-
-
-const val IMAGE_SEARCH_INITIAL_PAGE = 1
-const val IMAGE_SEARCH_PAGE_SIZE = 50
 
 interface PixabayService {
     @GET("/api?")

@@ -1,6 +1,5 @@
 package com.timothy.gogolook.data
 
-import com.timothy.gogolook.data.local.SearchTermsHistoryLocal
 import com.timothy.gogolook.data.model.PixabaySearchResponse
 import com.timothy.gogolook.data.network.PixabayService
 import io.reactivex.Single

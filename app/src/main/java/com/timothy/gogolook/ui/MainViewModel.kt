@@ -6,10 +6,10 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.paging.LivePagedListBuilder
 import androidx.paging.PagedList
-import com.timothy.gogolook.data.HISTORY_MAX_SIZE
 import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.*
 import com.timothy.gogolook.ui.adapters.ImageSearchResultDataSourceFactory
+import com.timothy.gogolook.util.HISTORY_MAX_SIZE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.reactivex.disposables.CompositeDisposable
 import java.util.*

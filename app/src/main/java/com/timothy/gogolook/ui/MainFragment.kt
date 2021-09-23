@@ -19,8 +19,7 @@ import com.timothy.gogolook.ui.adapters.LayoutType
 import com.timothy.gogolook.util.windowWidth
 import dagger.hilt.android.AndroidEntryPoint
 import com.google.android.material.snackbar.Snackbar
-
-val DEFAULT_LAYOUT_TYPE:LayoutType = LayoutType.Linear
+import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
 
 @AndroidEntryPoint
 class MainFragment : Fragment(), View.OnClickListener{
@@ -104,7 +103,7 @@ class MainFragment : Fragment(), View.OnClickListener{
             }
 
             searchTermInput.setOnTouchListener { _, _ ->
-                if(!historySearchTermsAdapter.isEmpty && !searchTermInput.isPopupShowing)
+                if(!historySearchTermsAdapter.isEmpty)
                     searchTermInput.showDropDown()
 
                 false

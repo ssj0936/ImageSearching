@@ -6,7 +6,7 @@ import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.data.model.LoadingStatusMutableLiveData
 import com.timothy.gogolook.data.model.PixabaySearchResponse
-import com.timothy.gogolook.data.network.IMAGE_SEARCH_INITIAL_PAGE
+import com.timothy.gogolook.util.IMAGE_SEARCH_INITIAL_PAGE
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.addTo

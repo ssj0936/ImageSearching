@@ -1,8 +1,7 @@
 package com.timothy.gogolook.data
 
+import com.timothy.gogolook.util.HISTORY_MAX_SIZE
 import java.util.*
-
-const val HISTORY_MAX_SIZE = 8
 
 interface SearchTermsHistoryService {
     //save latest [size] history terms

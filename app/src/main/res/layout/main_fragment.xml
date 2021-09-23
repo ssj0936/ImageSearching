@@ -48,7 +48,7 @@
         android:layout_marginBottom="@dimen/margin_small"
         android:hint="Search term"
         style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"
-        app:endIconMode="none">
+        app:endIconMode="clear_text">
         <com.timothy.gogolook.ui.widget.HistoryEditText
             android:id="@+id/search_term_input"
             android:layout_width="match_parent"

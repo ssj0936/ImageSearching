@@ -5,13 +5,12 @@ import android.content.Context
 import com.timothy.gogolook.data.SearchTermsHistoryService
 import com.timothy.gogolook.util.HISTORY_PREF_KEY
 import com.timothy.gogolook.util.HISTORY_PREF_VALUE
-import timber.log.Timber
 import java.util.*
 
 class SearchTermsHistoryLocal(
     private val context: Context
 ):SearchTermsHistoryService {
-    val separator = ",,"
+    private val separator = ",,"
 
     override fun saveHistoryTerms(termsList:Queue<String>,size:Int){
         while (termsList.size>size)
