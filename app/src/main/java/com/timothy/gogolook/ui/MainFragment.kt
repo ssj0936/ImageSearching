@@ -9,6 +9,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.timothy.gogolook.R
@@ -20,12 +21,14 @@ import com.timothy.gogolook.util.windowWidth
 import dagger.hilt.android.AndroidEntryPoint
 import com.google.android.material.snackbar.Snackbar
 import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainFragment : Fragment(), View.OnClickListener{
 
     private val mainViewModel: MainViewModel by viewModels()
-    lateinit var binding :MainFragmentBinding
+    private lateinit var binding :MainFragmentBinding
 
     //adapter for searching result
     private val searchResultAdapter = ImageSearchResultListAdapter()
@@ -113,9 +116,15 @@ class MainFragment : Fragment(), View.OnClickListener{
             btnRetry.setOnClickListener(this@MainFragment)
         }
 
-        mainViewModel.pagedList.observe(viewLifecycleOwner){
-            searchResultAdapter.submitList(it)
+        lifecycleScope.launch {
+            mainViewModel.pagingFlow.collectLatest { pagingData ->
+                searchResultAdapter.submitData(pagingData)
+            }
         }
+//
+//        mainViewModel.pagedList.observe(viewLifecycleOwner){
+//            searchResultAdapter.submitList(it)
+//        }
 
         mainViewModel.loadStatus.observe(viewLifecycleOwner){ loadingStatus ->
             //showing snackbar for error message
@@ -161,12 +170,12 @@ class MainFragment : Fragment(), View.OnClickListener{
             (binding.recyclerView.layoutManager as LinearLayoutManager).findFirstCompletelyVisibleItemPosition()
 
         if(this.isGrid){
-            binding.recyclerView.layoutManager = gridLayoutManager.also {
-                it.scrollToPosition(lastFirstVisiblePosition)
+            binding.recyclerView.layoutManager = gridLayoutManager.apply {
+                scrollToPosition(lastFirstVisiblePosition)
             }
         }else{
-            binding.recyclerView.layoutManager = linearLayoutManager.also {
-                it.scrollToPosition(lastFirstVisiblePosition)
+            binding.recyclerView.layoutManager = linearLayoutManager.apply{
+                scrollToPosition(lastFirstVisiblePosition)
             }
         }
     }

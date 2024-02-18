@@ -4,23 +4,28 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.paging.LivePagedListBuilder
+import androidx.lifecycle.viewModelScope
 import androidx.paging.PagedList
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.cachedIn
 import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.*
-import com.timothy.gogolook.ui.adapters.ImageSearchResultDataSourceFactory
+import com.timothy.gogolook.ui.adapters.ImageSearchResultPagedDataSource
 import com.timothy.gogolook.util.HISTORY_MAX_SIZE
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.reactivex.disposables.CompositeDisposable
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repository: Repository
 ): ViewModel() {
-    private val compositeDisposable = CompositeDisposable()
-
     //for loading progressbar display
     val loadStatus : LiveData<LoadingStatus>
         get() = _loadStatus
@@ -39,10 +44,13 @@ class MainViewModel @Inject constructor(
     //save to repository when viewmodel onClear
     val searchTermsHistory:MediatorLiveData<Queue<String>> = MediatorLiveData()
 
-    //paged recyclerview setup
-    private val dataSourceFactory:ImageSearchResultDataSourceFactory =
-        ImageSearchResultDataSourceFactory(repository, compositeDisposable, _searchTerms, _loadStatus)
-    val pagedList: LiveData<PagedList<HitsItem>>
+    private val flowPagingSource = MutableStateFlow(ImageSearchResultPagedDataSource(repository, _searchTerms.value!!))
+    val pagingFlow = flowPagingSource.flatMapLatest {
+            Pager(
+                config = PagingConfig(pageSize = 20),
+                pagingSourceFactory = {it}
+            ).flow.cachedIn(viewModelScope)
+    }
 
     init {
         initSearchTermsHistory()
@@ -68,14 +76,6 @@ class MainViewModel @Inject constructor(
             //save the history
             saveSearchTermsHistory()
         }
-
-        //recyclerview datasource settings
-        val config = PagedList.Config.Builder()
-            .setEnablePlaceholders(false)
-            .setPrefetchDistance(5)
-            .build()
-
-        pagedList = LivePagedListBuilder(dataSourceFactory, config).build()
     }
 
     private fun initSearchTermsHistory(){
@@ -90,15 +90,17 @@ class MainViewModel @Inject constructor(
 
     fun updateSearchTerms(terms:String){
         _searchTerms.value = terms
-        pagedList.value?.dataSource?.invalidate()
+        viewModelScope.launch {
+            flowPagingSource.emit(ImageSearchResultPagedDataSource(repository, terms))
+        }
     }
 
     fun retry(){
-        dataSourceFactory.dataSource.retry()
+//        dataSourceFactory.dataSource.retry()
     }
 
     override fun onCleared() {
         super.onCleared()
-        compositeDisposable.clear()
+//        compositeDisposable.clear()
     }
 }

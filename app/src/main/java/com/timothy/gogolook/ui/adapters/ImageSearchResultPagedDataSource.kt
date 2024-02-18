@@ -1,120 +1,37 @@
 package com.timothy.gogolook.ui.adapters
 
-import androidx.lifecycle.LiveData
-import androidx.paging.PageKeyedDataSource
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
 import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.HitsItem
-import com.timothy.gogolook.data.model.LoadingStatusMutableLiveData
-import com.timothy.gogolook.data.model.PixabaySearchResponse
 import com.timothy.gogolook.util.IMAGE_SEARCH_INITIAL_PAGE
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.rxkotlin.addTo
-import io.reactivex.rxkotlin.subscribeBy
-import io.reactivex.schedulers.Schedulers
 import timber.log.Timber
 
 class ImageSearchResultPagedDataSource (
     private val repository: Repository,
-    private val compositeDisposable: CompositeDisposable,
-    private val searchTerms: LiveData<String>,
-    private val loadStatus: LoadingStatusMutableLiveData
-): PageKeyedDataSource<Int, HitsItem>() {
-    var initParams:LoadInitialParams<Int>? = null
-    var lastParams:LoadParams<Int>? = null
-    var initCallback:LoadInitialCallback<Int,HitsItem>? = null
-    var lastCallback:LoadCallback<Int,HitsItem>? = null
-
-    override fun loadInitial(
-        params: LoadInitialParams<Int>,
-        callback: LoadInitialCallback<Int,HitsItem>
-    ) {
-        initParams = params
-        initCallback = callback
-
-        searchTerms.value?.let{
-            loadStatus.setLoading()
-            repository.getSearchImages(it,IMAGE_SEARCH_INITIAL_PAGE)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeBy(
-                    onSuccess = {response ->
-                        if(response.isSuccessful){
-                            val result = response.body() as PixabaySearchResponse
-                            if(result.hits!=null){
-                                callback.onResult(result.hits,null,IMAGE_SEARCH_INITIAL_PAGE+1)
-                                loadStatus.setSuccess()
-                            }else{
-                                Timber.d("ERROR loadInitial: null list")
-                                loadStatus.setError("ERROR loadInitial: null list")
-                            }
-                        }else{
-                            Timber.d("ERROR loadInitial: response fail")
-                            loadStatus.setError("ERROR loadInitial: response fail")
-                        }
-                    },
-                    onError = { error ->
-                        Timber.d("ERROR loadInitial: $error")
-                        loadStatus.setError("ERROR loadInitial: $error")
-                    }
-                )
-                .addTo(compositeDisposable)
+    private val searchTerms: String,
+): PagingSource<Int, HitsItem>() {
+    override fun getRefreshKey(state: PagingState<Int, HitsItem>): Int? {
+        return state.anchorPosition?.let { anchorPosition ->
+            val anchorPage = state.closestPageToPosition(anchorPosition)
+            anchorPage?.prevKey?.plus(1) ?: anchorPage?.nextKey?.minus(1)
         }
     }
 
-    override fun loadAfter(
-        params: LoadParams<Int>,
-        callback: LoadCallback<Int, HitsItem>
-    ) {
-        lastParams = params
-        lastCallback = callback
-
-        searchTerms.value?.let {
-            loadStatus.setLoading()
-            repository.getSearchImages(it, params.key)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeBy(
-                    onSuccess = { response ->
-                        if (response.isSuccessful) {
-                            val result = response.body() as PixabaySearchResponse
-                            if (result.hits != null) {
-                                callback.onResult(result.hits, params.key + 1)
-                                loadStatus.setSuccess()
-                            }else{
-                                Timber.d("ERROR loadInitial: null list")
-                                loadStatus.setError("ERROR loadInitial: null list")
-                            }
-                        } else {
-                            Timber.d("ERROR loadAfter: response fail")
-                            loadStatus.setError("ERROR loadAfter: response fail")
-
-                        }
-                    },
-                    onError = { error ->
-                        Timber.d("ERROR loadAfter: $error")
-                        loadStatus.setError("ERROR loadAfter: $error")
-                    }
-                )
-                .addTo(compositeDisposable)
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, HitsItem> {
+        try {
+            val pageNumber = params.key?: IMAGE_SEARCH_INITIAL_PAGE
+            val response = repository.getSearchImages(searchTerms,pageNumber)
+            val items = response.body()!!.hits!!
+            return LoadResult.Page(
+                data = response.body()!!.hits ?: emptyList(),
+                prevKey = if(pageNumber==1) null else pageNumber-1,
+                nextKey = if(items.isEmpty()) null else pageNumber+1
+            )
+        }catch (e:Exception){
+            Timber.d(e)
         }
+
+        return LoadResult.Page(data = emptyList(), null, null)
     }
-
-    override fun loadBefore(
-        params: LoadParams<Int>,
-        callback: LoadCallback<Int,HitsItem>
-    ) {}
-
-    fun retry(){
-        when{
-            isLoadInitialSet() -> loadInitial(initParams ?: return, initCallback ?: return)
-            isLoadAfterSet() -> loadAfter(lastParams ?: return, lastCallback ?: return)
-        }
-    }
-
-    private fun isLoadInitialSet() : Boolean =
-        initParams!=null && initCallback!=null && !isLoadAfterSet()
-
-    private fun isLoadAfterSet() : Boolean =
-        lastParams!=null && lastCallback!=null
 }

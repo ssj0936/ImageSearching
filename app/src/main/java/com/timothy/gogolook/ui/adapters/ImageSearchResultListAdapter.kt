@@ -3,6 +3,7 @@ package com.timothy.gogolook.ui.adapters
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.paging.PagedListAdapter
+import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
@@ -10,13 +11,12 @@ import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.databinding.RecyclerviewImageSearchResultItemGridBinding
 import com.timothy.gogolook.databinding.RecyclerviewImageSearchResultItemLineBinding
 import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
+import com.timothy.gogolook.util.LAYOUT_TYPE_GRID
+import com.timothy.gogolook.util.LAYOUT_TYPE_LINEAR
 
-class ImageSearchResultListAdapter: PagedListAdapter<HitsItem, ImageSearchResultListAdapter.ImageSearchResultListViewHolder>(
+class ImageSearchResultListAdapter: PagingDataAdapter<HitsItem, ImageSearchResultListAdapter.ImageSearchResultListViewHolder>(
     ImageSearchResultListDiffCallback()
 ) {
-    private val LAYOUT_TYPE_LINEAR = 1
-    private val LAYOUT_TYPE_GRID = 2
-
     var layout:LayoutType = DEFAULT_LAYOUT_TYPE
         private set
 

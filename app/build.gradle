@@ -36,6 +36,10 @@ android {
     buildFeatures {
         dataBinding true
         viewBinding true
+        compose true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.9"
     }
     kapt {
         correctErrorTypes true
@@ -45,6 +49,8 @@ android {
 }
 
 dependencies {
+    def composeBom = platform('androidx.compose:compose-bom:2024.02.00')
+
     def version_retrofit = "2.9.0"
     def version_timber = "5.0.1"
     def version_paging = "3.2.1"
@@ -58,6 +64,23 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
+    implementation composeBom
+    androidTestImplementation composeBom
+    implementation 'androidx.compose.material3:material3'
+
+    // Android Studio Preview support
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    // UI Tests
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    // Optional - Integration with activities
+    implementation 'androidx.activity:activity-compose:1.8.2'
+    // Optional - Integration with ViewModels
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+
 
     //hilt
     implementation 'com.google.dagger:hilt-android:2.48'
@@ -70,12 +93,12 @@ dependencies {
 
     //retrofit
     implementation "com.squareup.retrofit2:retrofit:$version_retrofit"
-    implementation "com.squareup.retrofit2:adapter-rxjava2:$version_retrofit"
+//    implementation "com.squareup.retrofit2:adapter-rxjava2:$version_retrofit"
     implementation "com.squareup.retrofit2:converter-gson:$version_retrofit"
 
     //RxJava
-    implementation "io.reactivex.rxjava2:rxandroid:2.1.1"
-    implementation 'io.reactivex.rxjava2:rxkotlin:2.3.0'
+//    implementation "io.reactivex.rxjava2:rxandroid:2.1.1"
+//    implementation 'io.reactivex.rxjava2:rxkotlin:2.3.0'
 
     //navigation
     implementation "androidx.navigation:navigation-fragment-ktx:$version_navigation"
@@ -92,7 +115,7 @@ dependencies {
 
     //Paging
     implementation "androidx.paging:paging-runtime-ktx:$version_paging"
-    implementation "androidx.paging:paging-rxjava2-ktx:$version_paging"
+//    implementation "androidx.paging:paging-rxjava2-ktx:$version_paging"
 
     debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.7'
 
