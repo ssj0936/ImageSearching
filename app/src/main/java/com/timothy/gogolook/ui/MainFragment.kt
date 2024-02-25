@@ -4,25 +4,26 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.view.*
-import androidx.fragment.app.Fragment
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import com.timothy.gogolook.R
 import com.timothy.gogolook.data.model.LoadingStatus
 import com.timothy.gogolook.databinding.MainFragmentBinding
 import com.timothy.gogolook.ui.adapters.ImageSearchResultListAdapter
 import com.timothy.gogolook.ui.adapters.LayoutType
+import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
 import com.timothy.gogolook.util.windowWidth
 import dagger.hilt.android.AndroidEntryPoint
-import com.google.android.material.snackbar.Snackbar
-import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @AndroidEntryPoint
 class MainFragment : Fragment(), View.OnClickListener{
@@ -121,38 +122,40 @@ class MainFragment : Fragment(), View.OnClickListener{
                 searchResultAdapter.submitData(pagingData)
             }
         }
-//
-//        mainViewModel.pagedList.observe(viewLifecycleOwner){
-//            searchResultAdapter.submitList(it)
-//        }
 
-        mainViewModel.loadStatus.observe(viewLifecycleOwner){ loadingStatus ->
-            //showing snackbar for error message
-            loadingStatus.message?.let {
-                Snackbar.make(
-                    requireActivity().findViewById(android.R.id.content),
-                    it,
-                    Snackbar.LENGTH_SHORT
-                ).show()
+        lifecycleScope.launch {
+            mainViewModel.uiState.collectLatest { uiState->
+                if(uiState.loadState is LoadingStatus.Error){
+                    uiState.loadState.message?.let {msg->
+                        Snackbar.make(
+                            requireActivity().findViewById(android.R.id.content),
+                            msg,
+                            Snackbar.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+                binding.progressBar.visibility =
+                    if(uiState.loadState is LoadingStatus.Loading) View.VISIBLE else View.GONE
+
+                binding.btnRetry.visibility =
+                    if(uiState.loadState is LoadingStatus.Error) View.VISIBLE else View.GONE
+
             }
-
-            binding.progressBar.visibility =
-                if(loadingStatus is LoadingStatus.Loading) View.VISIBLE else View.GONE
-
-            binding.btnRetry.visibility =
-                if(loadingStatus is LoadingStatus.Error) View.VISIBLE else View.GONE
         }
 
-        mainViewModel.searchTermsHistory.observe(viewLifecycleOwner){ queue ->
-            historySearchTermsAdapter.run {
-                clear()
-                queue.toList().asReversed().forEach { historySearchTermsAdapter.add(it) }
-                notifyDataSetChanged()
+        lifecycleScope.launch{
+            mainViewModel.searchTermsHistory.collectLatest { queue ->
+                historySearchTermsAdapter.run {
+                    clear()
+                    queue.toList().asReversed().forEach { historySearchTermsAdapter.add(it) }
+                    notifyDataSetChanged()
+                }
             }
         }
     }
 
     private fun submitSearchTerms(){
+        Timber.d("submitSearchTerms")
         //hide ime
         val imeService = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imeService.hideSoftInputFromWindow(view?.windowToken ?: return, 0)
@@ -182,7 +185,7 @@ class MainFragment : Fragment(), View.OnClickListener{
 
     private fun updateSearchTermsInput(){
         binding.searchTermInput.text?.trim().toString().replace("\\s+","+").let {
-            if (it.isNotBlank() && mainViewModel.loadStatus.value !is LoadingStatus.Loading) {
+            if (it.isNotBlank() && mainViewModel.currentState.loadState !is LoadingStatus.Loading) {
                 mainViewModel.updateSearchTerms(it)
             }
         }

@@ -24,7 +24,6 @@ object Module {
         return Retrofit.Builder()
             .baseUrl(baseURL)
             .addConverterFactory(GsonConverterFactory.create())
-//            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .build()
             .create(PixabayService::class.java)
     }

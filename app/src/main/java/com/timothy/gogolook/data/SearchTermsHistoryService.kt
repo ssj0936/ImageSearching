@@ -8,5 +8,5 @@ interface SearchTermsHistoryService {
     fun saveHistoryTerms(termsList:Queue<String>, size:Int = HISTORY_MAX_SIZE)
 
     //get all history terms
-    fun getHistoryTerms(): Queue<String>
+    fun getHistoryTerms(): LinkedList<String>
 }
