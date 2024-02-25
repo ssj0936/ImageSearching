@@ -69,11 +69,13 @@ class MainFragment : Fragment(), View.OnClickListener{
 
             //layout button group settings
             with(displayBtnGroup){
-                addOnButtonCheckedListener { _, checkedId, _ ->
-                    if (checkedId == R.id.display_type_list) {
-                        toggleRecyclerViewLayout(false)
-                    } else if (checkedId == R.id.display_type_grid)
-                        toggleRecyclerViewLayout(true)
+                addOnButtonCheckedListener { _, checkedId, isChecked ->
+                    if(isChecked){
+                        if (checkedId == R.id.display_type_list) {
+                            toggleRecyclerViewLayout(false)
+                        } else if (checkedId == R.id.display_type_grid)
+                            toggleRecyclerViewLayout(true)
+                    }
                 }
 
                 //init default selection
@@ -155,7 +157,6 @@ class MainFragment : Fragment(), View.OnClickListener{
     }
 
     private fun submitSearchTerms(){
-        Timber.d("submitSearchTerms")
         //hide ime
         val imeService = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imeService.hideSoftInputFromWindow(view?.windowToken ?: return, 0)
