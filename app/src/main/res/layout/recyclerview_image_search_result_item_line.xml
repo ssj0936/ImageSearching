@@ -36,7 +36,6 @@
             android:layout_marginStart="@dimen/margin_small"
             android:text="@{@string/image_info_id(image_info.id)}"
             android:textAlignment="viewStart"
-            android:textAppearance="@style/CommonPrimaryContextTextStyle"
             app:layout_constraintBottom_toTopOf="@id/content02"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/image"
@@ -51,7 +50,6 @@
             android:layout_marginStart="@dimen/margin_small"
             android:text="@{@string/image_info_tags(image_info.tags)}"
             android:textAlignment="viewStart"
-            android:textAppearance="@style/CommonPrimaryContextTextStyle"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/image"
             app:layout_constraintTop_toBottomOf="@+id/content01"
@@ -66,7 +64,6 @@
             android:maxLines="1"
             android:text="@{@string/image_info_views(image_info.views)}"
             android:textAlignment="viewStart"
-            android:textAppearance="@style/CommonPrimaryContextTextStyle"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/image"
             app:layout_constraintTop_toBottomOf="@+id/content02"
@@ -81,7 +78,6 @@
             android:maxLines="1"
             android:text="@{@string/image_info_downloads(image_info.downloads)}"
             android:textAlignment="viewStart"
-            android:textAppearance="@style/CommonPrimaryContextTextStyle"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/image"
             app:layout_constraintTop_toBottomOf="@+id/content03"
@@ -96,14 +92,12 @@
             android:maxLines="1"
             android:text="@{@string/image_info_likes(image_info.likes)}"
             android:textAlignment="viewStart"
-            android:textAppearance="@style/CommonPrimaryContextTextStyle"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/image"
             app:layout_constraintTop_toBottomOf="@+id/content04"
             app:layout_constraintVertical_bias="0.0"
             tools:ignore="RtlSymmetry" />
-
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

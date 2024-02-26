@@ -16,7 +16,7 @@ fun setImage(image: ImageView, url: String?) {
     if (!url.isNullOrEmpty()){
         Glide.with(image.context).load(url)
             .transition(DrawableTransitionOptions.withCrossFade(200))
-            .placeholder(R.color.background_color)
+//            .placeholder(R.color.background_color)
             .error(R.drawable.glide_error_image)
             .into(image)
     }

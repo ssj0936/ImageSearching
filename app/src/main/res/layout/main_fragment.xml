@@ -44,7 +44,6 @@
         app:layout_constraintEnd_toStartOf="@id/display_btn_group"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:boxBackgroundColor="@color/background_color"
         android:layout_marginBottom="@dimen/margin_small"
         android:hint="Search term"
         style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"
