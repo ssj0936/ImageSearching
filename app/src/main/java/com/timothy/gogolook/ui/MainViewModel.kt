@@ -7,6 +7,8 @@ import androidx.paging.cachedIn
 import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.LoadingStatus
 import com.timothy.gogolook.ui.adapters.ImageSearchResultPagedDataSource
+import com.timothy.gogolook.ui.adapters.LayoutType
+import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
 import com.timothy.gogolook.util.HISTORY_MAX_SIZE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +28,8 @@ import javax.inject.Inject
 
 data class UIState(
     val loadState: LoadingStatus,
-    val searchTerms: String
+    val searchTerms: String,
+    val isGrid: Boolean
 ) : ViewModelState
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -35,33 +38,38 @@ class MainViewModel @Inject constructor(
     private val repository: Repository
 ) : BaseViewModel<UIState>() {
     override fun initState(): UIState =
-        UIState(loadState = LoadingStatus.Loading, searchTerms = "flower yellow")
+        UIState(
+            loadState = LoadingStatus.Loading,
+            searchTerms = "flower yellow",
+            isGrid = DEFAULT_LAYOUT_TYPE is LayoutType.Grid
+        )
 
-    val searchTermsHistory: StateFlow<LinkedList<String>> = uiState.map { it.searchTerms }.mapLatest {searchTerms->
-        viewModelScope.async {
-            val tmpTermsList = getSearchTermsHistory()
-            val index = tmpTermsList.indexOf(searchTerms)
+    val searchTermsHistory: StateFlow<LinkedList<String>> =
+        uiState.map { it.searchTerms }.mapLatest { searchTerms ->
+            viewModelScope.async {
+                val tmpTermsList = getSearchTermsHistory()
+                val index = tmpTermsList.indexOf(searchTerms)
 
-            //not found, push into queue
-            if (index == -1) {
-                tmpTermsList.offer(searchTerms)
-            } else {
-                tmpTermsList.remove(tmpTermsList.elementAt(index))
-                tmpTermsList.offer(searchTerms)
-            }
-            //pop those element out of range
-            while (tmpTermsList.size > HISTORY_MAX_SIZE)
-                tmpTermsList.poll()
+                //not found, push into queue
+                if (index == -1) {
+                    tmpTermsList.offer(searchTerms)
+                } else {
+                    tmpTermsList.remove(tmpTermsList.elementAt(index))
+                    tmpTermsList.offer(searchTerms)
+                }
+                //pop those element out of range
+                while (tmpTermsList.size > HISTORY_MAX_SIZE)
+                    tmpTermsList.poll()
 
-            saveSearchTermsHistory(tmpTermsList)
+                saveSearchTermsHistory(tmpTermsList)
 
-            tmpTermsList
-        }.await()
-    }.stateIn(
-        scope = viewModelScope,
-        started = WhileSubscribed(3000),
-        initialValue = LinkedList()
-    )
+                tmpTermsList
+            }.await()
+        }.stateIn(
+            scope = viewModelScope,
+            started = WhileSubscribed(3000),
+            initialValue = LinkedList()
+        )
 
     private val flowPagingSource = MutableStateFlow(ImageSearchResultPagedDataSource(
         repository = repository,
@@ -94,6 +102,10 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             flowPagingSource.emit(ImageSearchResultPagedDataSource(repository, terms))
         }
+    }
+
+    fun toggleRecyclerViewLayout(isGrid:Boolean){
+        setState { copy(isGrid = isGrid) }
     }
 
     fun retry() {

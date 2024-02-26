@@ -9,7 +9,9 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
@@ -22,34 +24,35 @@ import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
 import com.timothy.gogolook.util.windowWidth
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
-class MainFragment : Fragment(), View.OnClickListener{
+class MainFragment : Fragment(), View.OnClickListener {
 
     private val mainViewModel: MainViewModel by viewModels()
-    private lateinit var binding :MainFragmentBinding
+    private lateinit var binding: MainFragmentBinding
 
     //adapter for searching result
     private val searchResultAdapter = ImageSearchResultListAdapter()
-    //adapter for history search terms
-    private lateinit var historySearchTermsAdapter:ArrayAdapter<String>
 
-    private val gridLayoutManager:GridLayoutManager by lazy {
+    //adapter for history search terms
+    private lateinit var historySearchTermsAdapter: ArrayAdapter<String>
+
+    private val gridLayoutManager: GridLayoutManager by lazy {
         val width = windowWidth
         val gridWidth = resources.getDimension(R.dimen.recycler_view_item_image_length)
 
-        GridLayoutManager(requireContext(), (width/gridWidth).toInt())
+        GridLayoutManager(requireContext(), (width / gridWidth).toInt())
     }
 
-    private val linearLayoutManager:LinearLayoutManager by lazy {
+    private val linearLayoutManager: LinearLayoutManager by lazy {
         LinearLayoutManager(requireContext()).apply {
             orientation = LinearLayoutManager.VERTICAL
         }
     }
 
-    private var isGrid:Boolean = DEFAULT_LAYOUT_TYPE is LayoutType.Grid
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -59,27 +62,25 @@ class MainFragment : Fragment(), View.OnClickListener{
         return binding.root
     }
 
-    @SuppressLint("ClickableViewAccessibility")
+    @SuppressLint("ClickableViewAccessibility", "UnsafeRepeatOnLifecycleDetector")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        with(binding){
+        with(binding) {
             //recyclerView
             recyclerView.adapter = searchResultAdapter
-            recyclerView.layoutManager = if(isGrid) gridLayoutManager else linearLayoutManager
+            recyclerView.layoutManager =
+                if (mainViewModel.currentState.isGrid) gridLayoutManager else linearLayoutManager
 
             //layout button group settings
-            with(displayBtnGroup){
+            with(displayBtnGroup) {
                 addOnButtonCheckedListener { _, checkedId, isChecked ->
-                    if(isChecked){
-                        if (checkedId == R.id.display_type_list) {
-                            toggleRecyclerViewLayout(false)
-                        } else if (checkedId == R.id.display_type_grid)
-                            toggleRecyclerViewLayout(true)
+                    if (isChecked) {
+                        mainViewModel.toggleRecyclerViewLayout(isGrid = (checkedId == R.id.display_type_grid))
                     }
                 }
 
                 //init default selection
-                check(if(isGrid) R.id.display_type_grid else R.id.display_type_list)
+                check(if (mainViewModel.currentState.isGrid) R.id.display_type_grid else R.id.display_type_list)
             }
 
             //search terms editText
@@ -101,7 +102,8 @@ class MainFragment : Fragment(), View.OnClickListener{
             }
 
             //history search terms
-            historySearchTermsAdapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_dropdown_item_1line)
+            historySearchTermsAdapter =
+                ArrayAdapter<String>(requireContext(), android.R.layout.simple_dropdown_item_1line)
             searchTermInput.setAdapter(historySearchTermsAdapter)
             searchTermInput.threshold = 1
             searchTermInput.setOnItemClickListener { _, _, _, _ ->
@@ -109,7 +111,7 @@ class MainFragment : Fragment(), View.OnClickListener{
             }
 
             searchTermInput.setOnTouchListener { _, _ ->
-                if(!historySearchTermsAdapter.isEmpty)
+                if (!historySearchTermsAdapter.isEmpty)
                     searchTermInput.showDropDown()
 
                 false
@@ -120,72 +122,80 @@ class MainFragment : Fragment(), View.OnClickListener{
         }
 
         lifecycleScope.launch {
-            mainViewModel.pagingFlow.collectLatest { pagingData ->
-                searchResultAdapter.submitData(pagingData)
-            }
-        }
-
-        lifecycleScope.launch {
-            mainViewModel.uiState.collectLatest { uiState->
-                if(uiState.loadState is LoadingStatus.Error){
-                    uiState.loadState.message?.let {msg->
-                        Snackbar.make(
-                            requireActivity().findViewById(android.R.id.content),
-                            msg,
-                            Snackbar.LENGTH_SHORT
-                        ).show()
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){
+                //paging
+                launch {
+                    mainViewModel.pagingFlow.collectLatest { pagingData ->
+                        searchResultAdapter.submitData(pagingData)
                     }
                 }
-                binding.progressBar.visibility =
-                    if(uiState.loadState is LoadingStatus.Loading) View.VISIBLE else View.GONE
+                //viewModel loadState
+                launch {
+                    mainViewModel.uiState.map { it.loadState }.collectLatest { loadState ->
+                        if (loadState is LoadingStatus.Error) {
+                            loadState.message?.let { msg ->
+                                Snackbar.make(
+                                    requireActivity().findViewById(android.R.id.content),
+                                    msg,
+                                    Snackbar.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                        binding.progressBar.visibility =
+                            if (loadState is LoadingStatus.Loading) View.VISIBLE else View.GONE
 
-                binding.btnRetry.visibility =
-                    if(uiState.loadState is LoadingStatus.Error) View.VISIBLE else View.GONE
+                        binding.btnRetry.visibility =
+                            if (loadState is LoadingStatus.Error) View.VISIBLE else View.GONE
+                    }
+                }
 
-            }
-        }
+                //viewModel isGrid
+                launch {
+                    mainViewModel.uiState.map { it.isGrid }.collectLatest{isGrid->
+                        searchResultAdapter.setLayoutType(if (isGrid) LayoutType.Grid else LayoutType.Linear)
 
-        lifecycleScope.launch{
-            mainViewModel.searchTermsHistory.collectLatest { queue ->
-                historySearchTermsAdapter.run {
-                    clear()
-                    queue.toList().asReversed().forEach { historySearchTermsAdapter.add(it) }
-                    notifyDataSetChanged()
+                        //scroll to position
+                        val lastFirstVisiblePosition =
+                            (binding.recyclerView.layoutManager as LinearLayoutManager).findFirstCompletelyVisibleItemPosition()
+
+                        if (isGrid) {
+                            binding.recyclerView.layoutManager = gridLayoutManager.apply {
+                                scrollToPosition(lastFirstVisiblePosition)
+                            }
+                        } else {
+                            binding.recyclerView.layoutManager = linearLayoutManager.apply {
+                                scrollToPosition(lastFirstVisiblePosition)
+                            }
+                        }
+                    }
+                }
+
+                //history
+                launch {
+                    mainViewModel.searchTermsHistory.collectLatest { queue ->
+                        historySearchTermsAdapter.run {
+                            clear()
+                            queue.toList().asReversed().forEach { historySearchTermsAdapter.add(it) }
+                            notifyDataSetChanged()
+                        }
+                    }
                 }
             }
         }
     }
 
-    private fun submitSearchTerms(){
+    private fun submitSearchTerms() {
         //hide ime
-        val imeService = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imeService =
+            requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imeService.hideSoftInputFromWindow(view?.windowToken ?: return, 0)
 
         //submit terms
         updateSearchTermsInput()
     }
 
-    private fun toggleRecyclerViewLayout(isGrid:Boolean){
-        this.isGrid = isGrid
-        searchResultAdapter.setLayoutType( if(isGrid) LayoutType.Grid else LayoutType.Linear )
-
-        //scroll to position
-        val lastFirstVisiblePosition =
-            (binding.recyclerView.layoutManager as LinearLayoutManager).findFirstCompletelyVisibleItemPosition()
-
-        if(this.isGrid){
-            binding.recyclerView.layoutManager = gridLayoutManager.apply {
-                scrollToPosition(lastFirstVisiblePosition)
-            }
-        }else{
-            binding.recyclerView.layoutManager = linearLayoutManager.apply{
-                scrollToPosition(lastFirstVisiblePosition)
-            }
-        }
-    }
-
-    private fun updateSearchTermsInput(){
-        binding.searchTermInput.text?.trim().toString().replace("\\s+","+").let {
+    private fun updateSearchTermsInput() {
+        binding.searchTermInput.text?.trim().toString().replace("\\s+", "+").let {
             if (it.isNotBlank() && mainViewModel.currentState.loadState !is LoadingStatus.Loading) {
                 mainViewModel.updateSearchTerms(it)
             }
@@ -193,8 +203,8 @@ class MainFragment : Fragment(), View.OnClickListener{
     }
 
     override fun onClick(view: View?) {
-        when(view){
-            binding.btnRetry ->{
+        when (view) {
+            binding.btnRetry -> {
                 mainViewModel.retry()
             }
         }
