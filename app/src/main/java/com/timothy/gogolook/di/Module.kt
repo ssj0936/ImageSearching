@@ -1,13 +1,12 @@
 package com.timothy.gogolook.di
 
-import android.content.Context
 import com.timothy.gogolook.data.SearchTermsHistoryService
 import com.timothy.gogolook.data.local.SearchTermsHistoryLocal
 import com.timothy.gogolook.data.network.PixabayService
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -15,7 +14,7 @@ import javax.inject.Singleton
 
 @InstallIn(SingletonComponent::class)
 @Module
-object Module {
+object ModuleProvide {
     @Singleton
     @Provides
     fun providePixabayService(): PixabayService {
@@ -27,10 +26,12 @@ object Module {
             .build()
             .create(PixabayService::class.java)
     }
+}
 
+@InstallIn(SingletonComponent::class)
+@Module
+abstract class ModuleBinds {
     @Singleton
-    @Provides
-    fun provideSearchTermsHistoryService(@ApplicationContext context: Context): SearchTermsHistoryService {
-        return SearchTermsHistoryLocal(context)
-    }
+    @Binds
+    abstract fun provideSearchTermsHistoryService(impl:SearchTermsHistoryLocal): SearchTermsHistoryService
 }

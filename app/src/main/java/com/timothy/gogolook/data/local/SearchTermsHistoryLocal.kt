@@ -5,10 +5,12 @@ import android.content.Context
 import com.timothy.gogolook.data.SearchTermsHistoryService
 import com.timothy.gogolook.util.HISTORY_PREF_KEY
 import com.timothy.gogolook.util.HISTORY_PREF_VALUE
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.*
+import javax.inject.Inject
 
-class SearchTermsHistoryLocal(
-    private val context: Context
+class SearchTermsHistoryLocal @Inject constructor(
+    @ApplicationContext private val context: Context
 ):SearchTermsHistoryService {
     private val separator = ",,"
 
