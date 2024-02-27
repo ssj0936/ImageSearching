@@ -19,6 +19,7 @@ import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import com.timothy.gogolook.R
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.data.model.LoadingStatus
@@ -192,33 +193,26 @@ class MainFragment : Fragment() {
                         searchResultAdapter.submitData(pagingData)
                     }
                 }
-                //viewModel loadState
-//                launch {
-//                    mainViewModel.uiState.map { it.loadState }.distinctUntilChanged().collectLatest { loadState ->
-//                        if (loadState is LoadingStatus.Error) {
-//                            loadState.message?.let { msg ->
-//                                Snackbar.make(
-//                                    requireActivity().findViewById(android.R.id.content),
-//                                    msg,
-//                                    Snackbar.LENGTH_SHORT
-//                                ).show()
-//                            }
-//                        }
-//                        binding.progressBar.visibility =
-//                            if (loadState is LoadingStatus.Loading) View.VISIBLE else View.GONE
-//
-//                        binding.btnRetry.visibility =
-//                            if (loadState is LoadingStatus.Error) View.VISIBLE else View.GONE
-//                    }
-//                }
 
                 launch {
                     searchResultAdapter.loadStateFlow.collectLatest { loadingState ->
-                        Timber.d("loadingState:$loadingState")
+                        val errorState = loadingState.source.append as? LoadState.Error
+                            ?: loadingState.source.prepend as? LoadState.Error
+                            ?: loadingState.append as? LoadState.Error
+                            ?: loadingState.prepend as? LoadState.Error
+
                         progressBar.visibility =
                             if (loadingState.refresh is LoadState.Loading) View.VISIBLE else View.GONE
                         binding.btnRetry.visibility =
-                            if (loadingState.refresh is LoadState.Error || loadingState.append is LoadState.Error) View.VISIBLE else View.GONE
+                            if (errorState is LoadState.Error) View.VISIBLE else View.GONE
+
+                        errorState?.error?.message?.let {msg ->
+                                Snackbar.make(
+                                    requireActivity().findViewById(android.R.id.content),
+                                    msg,
+                                    Snackbar.LENGTH_SHORT
+                                ).show()
+                        }
                     }
                 }
 

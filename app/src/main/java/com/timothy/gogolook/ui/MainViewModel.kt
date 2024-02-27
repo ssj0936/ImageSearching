@@ -30,16 +30,31 @@ data class UIState(
     val isGrid: Boolean
 ) : ViewModelState
 
+sealed class UIEvent:ViewModelEvent{
+    data class OnSearch(val searchTerm:String):UIEvent()
+}
+
+sealed class UIEffect:ViewModelEffect{
+    data class OnSnackBarShow(val msg:String):UIEffect()
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repository: Repository
-) : BaseViewModel<UIState>() {
+) : BaseViewModel<UIState, UIEvent, UIEffect>() {
     override fun initState(): UIState =
         UIState(
             searchTerms = "flower yellow",
             isGrid = DEFAULT_LAYOUT_TYPE is LayoutType.Grid
         )
+
+    override fun handleEvent(event: UIEvent) {
+        when(event){
+            is UIEvent.OnSearch->{}
+            else->{}
+        }
+    }
 
     val searchTermsHistory: StateFlow<List<String>> =
         uiState.map { it.searchTerms }.mapLatest { searchTerms ->
