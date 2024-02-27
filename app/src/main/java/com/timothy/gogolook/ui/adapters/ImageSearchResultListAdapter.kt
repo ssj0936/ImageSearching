@@ -15,7 +15,7 @@ import com.timothy.gogolook.util.LAYOUT_TYPE_GRID
 import com.timothy.gogolook.util.LAYOUT_TYPE_LINEAR
 
 class ImageSearchResultListAdapter: PagingDataAdapter<HitsItem, ImageSearchResultListAdapter.ImageSearchResultListViewHolder>(
-    ImageSearchResultListDiffCallback()
+    comparator
 ) {
     var layout:LayoutType = DEFAULT_LAYOUT_TYPE
         private set
@@ -65,21 +65,23 @@ class ImageSearchResultListAdapter: PagingDataAdapter<HitsItem, ImageSearchResul
     fun setLayoutType(layoutType:LayoutType){
         layout = layoutType
     }
+
+    companion object{
+        private val comparator = object:DiffUtil.ItemCallback<HitsItem>() {
+            override fun areItemsTheSame(
+                oldItem: HitsItem,
+                newItem: HitsItem
+            ): Boolean = oldItem.id == newItem.id && oldItem.previewURL == newItem.previewURL
+
+            override fun areContentsTheSame(
+                oldItem: HitsItem,
+                newItem: HitsItem
+            ): Boolean = oldItem == newItem
+        }
+    }
 }
 
 sealed class LayoutType{
     object Linear:LayoutType()
     object Grid:LayoutType()
-}
-
-class ImageSearchResultListDiffCallback: DiffUtil.ItemCallback<HitsItem>() {
-    override fun areItemsTheSame(
-        oldItem: HitsItem,
-        newItem: HitsItem
-    ): Boolean = oldItem.id == newItem.id
-
-    override fun areContentsTheSame(
-        oldItem: HitsItem,
-        newItem: HitsItem
-    ): Boolean = oldItem == newItem
 }

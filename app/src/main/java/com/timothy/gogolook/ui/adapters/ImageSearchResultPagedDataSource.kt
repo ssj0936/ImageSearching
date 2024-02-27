@@ -5,14 +5,15 @@ import androidx.paging.PagingState
 import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.util.IMAGE_SEARCH_INITIAL_PAGE
+import com.timothy.gogolook.util.IMAGE_SEARCH_PAGE_SIZE
 import timber.log.Timber
 
 class ImageSearchResultPagedDataSource (
     private val repository: Repository,
     private val searchTerms: String,
-    private val onLoading:()->Unit = {},
-    private val onLoadingFinish:()->Unit = {},
-    private val onLoadingFail:(String?)->Unit = {},
+    private val onLoading:()->Unit={},
+    private val onLoadingFinish:()->Unit ={},
+    private val onLoadingFail:(String?)->Unit={},
 ): PagingSource<Int, HitsItem>() {
     override fun getRefreshKey(state: PagingState<Int, HitsItem>): Int? {
         return state.anchorPosition?.let { anchorPosition ->
@@ -22,22 +23,26 @@ class ImageSearchResultPagedDataSource (
     }
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, HitsItem> {
-        try {
+        return try {
             onLoading()
             val pageNumber = params.key?: IMAGE_SEARCH_INITIAL_PAGE
-            val response = repository.getSearchImages(searchTerms,pageNumber)
+            val response = repository.getSearchImages(searchTerms,pageNumber, IMAGE_SEARCH_PAGE_SIZE)
             val items = response.body()!!.hits!!
+            val nextPage = if(items.isEmpty())
+                null
+            else{
+                pageNumber + (params.loadSize / IMAGE_SEARCH_PAGE_SIZE)
+            }
+
             onLoadingFinish()
             return LoadResult.Page(
                 data = response.body()!!.hits ?: emptyList(),
-                prevKey = if(pageNumber==1) null else pageNumber-1,
-                nextKey = if(items.isEmpty()) null else pageNumber+1
+                prevKey = if(pageNumber==IMAGE_SEARCH_INITIAL_PAGE) null else pageNumber-1,
+                nextKey = nextPage
             )
         }catch (e:Exception){
-            Timber.d(e)
             onLoadingFail(e.message)
+            LoadResult.Error(e)
         }
-
-        return LoadResult.Page(data = emptyList(), null, null)
     }
 }

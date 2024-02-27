@@ -5,10 +5,10 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.cachedIn
 import com.timothy.gogolook.data.Repository
-import com.timothy.gogolook.data.model.LoadingStatus
 import com.timothy.gogolook.ui.adapters.ImageSearchResultPagedDataSource
 import com.timothy.gogolook.ui.adapters.LayoutType
 import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
+import com.timothy.gogolook.util.IMAGE_SEARCH_PAGE_SIZE
 import com.timothy.gogolook.util.LRUCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -23,11 +23,9 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 import javax.inject.Inject
 
 data class UIState(
-    val loadState: LoadingStatus,
     val searchTerms: String,
     val isGrid: Boolean
 ) : ViewModelState
@@ -39,7 +37,6 @@ class MainViewModel @Inject constructor(
 ) : BaseViewModel<UIState>() {
     override fun initState(): UIState =
         UIState(
-            loadState = LoadingStatus.Loading,
             searchTerms = "flower yellow",
             isGrid = DEFAULT_LAYOUT_TYPE is LayoutType.Grid
         )
@@ -63,7 +60,9 @@ class MainViewModel @Inject constructor(
 
     val pagingFlow = flowPagingSource.flatMapLatest {
         Pager(
-            config = PagingConfig(pageSize = 20),
+            config = PagingConfig(
+                pageSize = IMAGE_SEARCH_PAGE_SIZE
+            ),
             pagingSourceFactory = { it }
         ).flow.cachedIn(viewModelScope)
     }
@@ -90,15 +89,8 @@ class MainViewModel @Inject constructor(
         setState { copy(isGrid = isGrid) }
     }
 
-    fun retry() {
-//        dataSourceFactory.dataSource.retry()
-    }
-
     private fun getImageSearchResultPagedDataSourceInstance(
         repository: Repository = this.repository,
-        searchTerms: String = currentState.searchTerms,
-        onLoading:()->Unit = { setState { copy(loadState = LoadingStatus.Loading) }.also { Timber.d("Loading") } },
-        onLoadingFinish:()->Unit = { setState { copy(loadState = LoadingStatus.Success) }.also { Timber.d("Success")  }},
-        onLoadingFail:(String?)->Unit = { setState { copy(loadState = LoadingStatus.Error(it)) }.also { Timber.d("Error!!")  }},
-    ) = ImageSearchResultPagedDataSource(repository, searchTerms, onLoading, onLoadingFinish, onLoadingFail)
+        searchTerms: String = currentState.searchTerms
+    ) = ImageSearchResultPagedDataSource(repository, searchTerms)
 }

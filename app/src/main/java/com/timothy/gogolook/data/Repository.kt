@@ -10,8 +10,8 @@ class Repository @Inject constructor(
     private val pixabayService: PixabayService,
     private val searchTermsHistoryService: SearchTermsHistoryService
 ){
-    suspend fun getSearchImages(searchTerms:String, page:Int = 1): Response<PixabaySearchResponse>
-        = pixabayService.getImages(searchTerms,page)
+    suspend fun getSearchImages(searchTerms:String, page:Int = 1, pageSize:Int): Response<PixabaySearchResponse>
+        = pixabayService.getImages(query = searchTerms, page = page, perPage = pageSize)
 
     fun getHistoryTerms(): LRUCache<String> = searchTermsHistoryService.getHistoryTerms()
 
