@@ -1,15 +1,11 @@
 package com.timothy.gogolook.ui
 
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.view.*
 import android.view.animation.AlphaAnimation
-import android.view.animation.Animation
-import android.view.animation.Animation.AnimationListener
 import android.view.animation.AnimationSet
-import android.view.animation.LinearInterpolator
 import android.view.animation.TranslateAnimation
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -19,18 +15,20 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.paging.LoadState
+import androidx.paging.PagingData
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.transition.Fade
-import com.google.android.material.snackbar.Snackbar
 import com.timothy.gogolook.R
+import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.data.model.LoadingStatus
 import com.timothy.gogolook.databinding.MainFragmentBinding
 import com.timothy.gogolook.ui.adapters.ImageSearchResultListAdapter
 import com.timothy.gogolook.ui.adapters.LayoutType
-import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
 import com.timothy.gogolook.util.windowWidth
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -38,18 +36,12 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
-class MainFragment : Fragment(), View.OnClickListener {
+class MainFragment : Fragment() {
 
     private val mainViewModel: MainViewModel by viewModels()
     private lateinit var binding: MainFragmentBinding
 
-    //adapter for searching result
-    private val searchResultAdapter = ImageSearchResultListAdapter()
-
-    //adapter for history search terms
-    private lateinit var historySearchTermsAdapter: ArrayAdapter<String>
-
-    val animSet = AnimationSet(true).apply {
+    private val animSet = AnimationSet(true).apply {
         addAnimation(AlphaAnimation(0f, 1f).apply {
             duration = 500
         })
@@ -72,7 +64,6 @@ class MainFragment : Fragment(), View.OnClickListener {
         }
     }
 
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -81,32 +72,55 @@ class MainFragment : Fragment(), View.OnClickListener {
         return binding.root
     }
 
-    @SuppressLint("ClickableViewAccessibility", "UnsafeRepeatOnLifecycleDetector")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        with(binding) {
-            //recyclerView
-            recyclerView.adapter = searchResultAdapter
-            recyclerView.layoutManager =
-                if (mainViewModel.currentState.isGrid) gridLayoutManager else linearLayoutManager
 
-            //layout button group settings
-            with(displayBtnGroup) {
-                addOnButtonCheckedListener { _, checkedId, isChecked ->
-                    if (isChecked) {
-                        mainViewModel.toggleRecyclerViewLayout(isGrid = (checkedId == R.id.display_type_grid))
-                        recyclerView.apply {
-                            startAnimation(animSet)
-                        }
+        binding.bindState(
+            uiStateFlow = mainViewModel.uiState,
+            searchHistoryStateFlow = mainViewModel.searchTermsHistory,
+            pagingFlow = mainViewModel.pagingFlow
+        )
+    }
+
+    private fun MainFragmentBinding.bindState(
+        uiStateFlow: StateFlow<UIState>,
+        searchHistoryStateFlow: StateFlow<List<String>>,
+        pagingFlow: Flow<PagingData<HitsItem>>,
+    ) {
+        bindSearch(searchHistoryStateFlow = searchHistoryStateFlow)
+        bindList(uiStateFlow = uiStateFlow, pagingFlow = pagingFlow)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun MainFragmentBinding.bindSearch(
+        searchHistoryStateFlow: StateFlow<List<String>>
+    ) {
+        //adapter for history search terms
+        val historySearchTermsAdapter: ArrayAdapter<String> =
+            ArrayAdapter<String>(requireContext(), android.R.layout.simple_dropdown_item_1line)
+
+        //group toggle buttons
+        with(displayBtnGroup) {
+            this.addOnButtonCheckedListener { _, checkedId, isChecked ->
+                if (isChecked) {
+                    mainViewModel.toggleRecyclerViewLayout(isGrid = (checkedId == R.id.display_type_grid))
+                    recyclerView.apply {
+                        startAnimation(animSet)
                     }
                 }
-
-                //init default selection
-                check(if (mainViewModel.currentState.isGrid) R.id.display_type_grid else R.id.display_type_list)
             }
 
+            //init default selection
+            this.check(if (mainViewModel.currentState.isGrid) R.id.display_type_grid else R.id.display_type_list)
+        }
+
+        with(searchTermInput) {
+            threshold = 1
+            setText(mainViewModel.currentState.searchTerms)
+            setAdapter(historySearchTermsAdapter)
+
             //search terms editText
-            searchTermInput.setOnEditorActionListener { _, actionId, _ ->
+            setOnEditorActionListener { _, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_NEXT) {
                     submitSearchTerms()
                     true
@@ -114,7 +128,7 @@ class MainFragment : Fragment(), View.OnClickListener {
                     false
                 }
             }
-            searchTermInput.setOnKeyListener { _, keyCode, event ->
+            setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
                     submitSearchTerms()
                     true
@@ -124,57 +138,93 @@ class MainFragment : Fragment(), View.OnClickListener {
             }
 
             //history search terms
-            historySearchTermsAdapter =
-                ArrayAdapter<String>(requireContext(), android.R.layout.simple_dropdown_item_1line)
-            searchTermInput.setText(mainViewModel.currentState.searchTerms)
-            searchTermInput.setAdapter(historySearchTermsAdapter)
-            searchTermInput.threshold = 1
-            searchTermInput.setOnItemClickListener { _, _, _, _ ->
+            setOnItemClickListener { _, _, _, _ ->
                 submitSearchTerms()
             }
 
-            searchTermInput.setOnTouchListener { _, _ ->
+            setOnTouchListener { _, _ ->
                 if (!historySearchTermsAdapter.isEmpty)
                     searchTermInput.showDropDown()
 
                 false
             }
+        }
 
-            //retry button for fetching data fail
-            btnRetry.setOnClickListener(this@MainFragment)
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                searchHistoryStateFlow.collectLatest { historyTerms ->
+                    historySearchTermsAdapter.run {
+                        clear()
+                        historySearchTermsAdapter.addAll(historyTerms.asReversed())
+                        notifyDataSetChanged()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun MainFragmentBinding.bindList(
+        uiStateFlow: StateFlow<UIState>,
+        pagingFlow: Flow<PagingData<HitsItem>>,
+    ) {
+        //adapter for searching result
+        val searchResultAdapter = ImageSearchResultListAdapter()
+
+        //recyclerView
+        with(recyclerView) {
+            adapter = searchResultAdapter
+            layoutManager =
+                if (mainViewModel.currentState.isGrid) gridLayoutManager else linearLayoutManager
+        }
+
+        //retry button for fetching data fail
+        with(btnRetry) {
+            setOnClickListener {
+                searchResultAdapter.retry()
+            }
         }
 
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 //paging
                 launch {
-                    mainViewModel.pagingFlow.collectLatest { pagingData ->
+                    pagingFlow.collectLatest { pagingData ->
                         searchResultAdapter.submitData(pagingData)
                     }
                 }
                 //viewModel loadState
-                launch {
-                    mainViewModel.uiState.map { it.loadState }.distinctUntilChanged().collectLatest { loadState ->
-                        if (loadState is LoadingStatus.Error) {
-                            loadState.message?.let { msg ->
-                                Snackbar.make(
-                                    requireActivity().findViewById(android.R.id.content),
-                                    msg,
-                                    Snackbar.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                        binding.progressBar.visibility =
-                            if (loadState is LoadingStatus.Loading) View.VISIBLE else View.GONE
+//                launch {
+//                    mainViewModel.uiState.map { it.loadState }.distinctUntilChanged().collectLatest { loadState ->
+//                        if (loadState is LoadingStatus.Error) {
+//                            loadState.message?.let { msg ->
+//                                Snackbar.make(
+//                                    requireActivity().findViewById(android.R.id.content),
+//                                    msg,
+//                                    Snackbar.LENGTH_SHORT
+//                                ).show()
+//                            }
+//                        }
+//                        binding.progressBar.visibility =
+//                            if (loadState is LoadingStatus.Loading) View.VISIBLE else View.GONE
+//
+//                        binding.btnRetry.visibility =
+//                            if (loadState is LoadingStatus.Error) View.VISIBLE else View.GONE
+//                    }
+//                }
 
+                launch {
+                    searchResultAdapter.loadStateFlow.collectLatest { loadingState ->
+                        Timber.d("loadingState:$loadingState")
+                        progressBar.visibility =
+                            if (loadingState.refresh is LoadState.Loading) View.VISIBLE else View.GONE
                         binding.btnRetry.visibility =
-                            if (loadState is LoadingStatus.Error) View.VISIBLE else View.GONE
+                            if (loadingState.refresh is LoadState.Error || loadingState.append is LoadState.Error) View.VISIBLE else View.GONE
                     }
                 }
 
                 //viewModel isGrid
                 launch {
-                    mainViewModel.uiState.map { it.isGrid }.distinctUntilChanged().collectLatest { isGrid ->
+                    uiStateFlow.map { it.isGrid }.distinctUntilChanged().collectLatest { isGrid ->
                         searchResultAdapter.setLayoutType(if (isGrid) LayoutType.Grid else LayoutType.Linear)
 
                         //scroll to position
@@ -189,17 +239,6 @@ class MainFragment : Fragment(), View.OnClickListener {
                             binding.recyclerView.layoutManager = linearLayoutManager.apply {
                                 scrollToPosition(lastFirstVisiblePosition)
                             }
-                        }
-                    }
-                }
-
-                //history
-                launch {
-                    mainViewModel.searchTermsHistory.collectLatest { historyTerms ->
-                        historySearchTermsAdapter.run {
-                            clear()
-                            historySearchTermsAdapter.addAll(historyTerms.asReversed())
-                            notifyDataSetChanged()
                         }
                     }
                 }
@@ -219,17 +258,8 @@ class MainFragment : Fragment(), View.OnClickListener {
 
     private fun updateSearchTermsInput() {
         binding.searchTermInput.text?.trim().toString().replace("\\s+", "+").let {
-            if (it.isNotBlank() && mainViewModel.currentState.loadState !is LoadingStatus.Loading) {
+            if (it.isNotBlank()) {
                 mainViewModel.updateSearchTerms(it)
-            }
-        }
-    }
-
-    override fun onClick(view: View?) {
-        when (view) {
-            binding.btnRetry -> {
-                searchResultAdapter.retry()
-//                mainViewModel.retry()
             }
         }
     }
