@@ -1,9 +1,16 @@
 package com.timothy.gogolook.ui
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.view.*
+import android.view.animation.AlphaAnimation
+import android.view.animation.Animation
+import android.view.animation.Animation.AnimationListener
+import android.view.animation.AnimationSet
+import android.view.animation.LinearInterpolator
+import android.view.animation.TranslateAnimation
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
@@ -14,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.transition.Fade
 import com.google.android.material.snackbar.Snackbar
 import com.timothy.gogolook.R
 import com.timothy.gogolook.data.model.LoadingStatus
@@ -24,6 +32,7 @@ import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
 import com.timothy.gogolook.util.windowWidth
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -39,6 +48,16 @@ class MainFragment : Fragment(), View.OnClickListener {
 
     //adapter for history search terms
     private lateinit var historySearchTermsAdapter: ArrayAdapter<String>
+
+    val animSet = AnimationSet(true).apply {
+        addAnimation(AlphaAnimation(0f, 1f).apply {
+            duration = 500
+        })
+        addAnimation(TranslateAnimation(0f, 0f, 100f, 0f).apply {
+            duration = 500
+        })
+        fillAfter = true
+    }
 
     private val gridLayoutManager: GridLayoutManager by lazy {
         val width = windowWidth
@@ -76,6 +95,9 @@ class MainFragment : Fragment(), View.OnClickListener {
                 addOnButtonCheckedListener { _, checkedId, isChecked ->
                     if (isChecked) {
                         mainViewModel.toggleRecyclerViewLayout(isGrid = (checkedId == R.id.display_type_grid))
+                        recyclerView.apply {
+                            startAnimation(animSet)
+                        }
                     }
                 }
 
@@ -104,6 +126,7 @@ class MainFragment : Fragment(), View.OnClickListener {
             //history search terms
             historySearchTermsAdapter =
                 ArrayAdapter<String>(requireContext(), android.R.layout.simple_dropdown_item_1line)
+            searchTermInput.setText(mainViewModel.currentState.searchTerms)
             searchTermInput.setAdapter(historySearchTermsAdapter)
             searchTermInput.threshold = 1
             searchTermInput.setOnItemClickListener { _, _, _, _ ->
@@ -122,7 +145,7 @@ class MainFragment : Fragment(), View.OnClickListener {
         }
 
         lifecycleScope.launch {
-            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 //paging
                 launch {
                     mainViewModel.pagingFlow.collectLatest { pagingData ->
@@ -131,7 +154,7 @@ class MainFragment : Fragment(), View.OnClickListener {
                 }
                 //viewModel loadState
                 launch {
-                    mainViewModel.uiState.map { it.loadState }.collectLatest { loadState ->
+                    mainViewModel.uiState.map { it.loadState }.distinctUntilChanged().collectLatest { loadState ->
                         if (loadState is LoadingStatus.Error) {
                             loadState.message?.let { msg ->
                                 Snackbar.make(
@@ -151,7 +174,7 @@ class MainFragment : Fragment(), View.OnClickListener {
 
                 //viewModel isGrid
                 launch {
-                    mainViewModel.uiState.map { it.isGrid }.collectLatest{isGrid->
+                    mainViewModel.uiState.map { it.isGrid }.distinctUntilChanged().collectLatest { isGrid ->
                         searchResultAdapter.setLayoutType(if (isGrid) LayoutType.Grid else LayoutType.Linear)
 
                         //scroll to position
@@ -172,10 +195,10 @@ class MainFragment : Fragment(), View.OnClickListener {
 
                 //history
                 launch {
-                    mainViewModel.searchTermsHistory.collectLatest { queue ->
+                    mainViewModel.searchTermsHistory.collectLatest { historyTerms ->
                         historySearchTermsAdapter.run {
                             clear()
-                            queue.toList().asReversed().forEach { historySearchTermsAdapter.add(it) }
+                            historySearchTermsAdapter.addAll(historyTerms.asReversed())
                             notifyDataSetChanged()
                         }
                     }
@@ -205,7 +228,8 @@ class MainFragment : Fragment(), View.OnClickListener {
     override fun onClick(view: View?) {
         when (view) {
             binding.btnRetry -> {
-                mainViewModel.retry()
+                searchResultAdapter.retry()
+//                mainViewModel.retry()
             }
         }
     }

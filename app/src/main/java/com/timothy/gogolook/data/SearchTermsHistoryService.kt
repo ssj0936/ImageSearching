@@ -1,12 +1,12 @@
 package com.timothy.gogolook.data
 
 import com.timothy.gogolook.util.HISTORY_MAX_SIZE
-import java.util.*
+import com.timothy.gogolook.util.LRUCache
 
 interface SearchTermsHistoryService {
     //save latest [size] history terms
-    fun saveHistoryTerms(termsList:Queue<String>, size:Int = HISTORY_MAX_SIZE)
+    fun saveHistoryTerms(termsList: LRUCache<String>, size:Int = HISTORY_MAX_SIZE)
 
     //get all history terms
-    fun getHistoryTerms(): LinkedList<String>
+    fun getHistoryTerms(): LRUCache<String>
 }

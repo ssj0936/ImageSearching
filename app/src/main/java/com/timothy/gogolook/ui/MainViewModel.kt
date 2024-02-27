@@ -9,7 +9,7 @@ import com.timothy.gogolook.data.model.LoadingStatus
 import com.timothy.gogolook.ui.adapters.ImageSearchResultPagedDataSource
 import com.timothy.gogolook.ui.adapters.LayoutType
 import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
-import com.timothy.gogolook.util.HISTORY_MAX_SIZE
+import com.timothy.gogolook.util.LRUCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.LinkedList
+import timber.log.Timber
 import javax.inject.Inject
 
 data class UIState(
@@ -44,40 +44,22 @@ class MainViewModel @Inject constructor(
             isGrid = DEFAULT_LAYOUT_TYPE is LayoutType.Grid
         )
 
-    val searchTermsHistory: StateFlow<LinkedList<String>> =
+    val searchTermsHistory: StateFlow<List<String>> =
         uiState.map { it.searchTerms }.mapLatest { searchTerms ->
             viewModelScope.async {
                 val tmpTermsList = getSearchTermsHistory()
-                val index = tmpTermsList.indexOf(searchTerms)
-
-                //not found, push into queue
-                if (index == -1) {
-                    tmpTermsList.offer(searchTerms)
-                } else {
-                    tmpTermsList.remove(tmpTermsList.elementAt(index))
-                    tmpTermsList.offer(searchTerms)
-                }
-                //pop those element out of range
-                while (tmpTermsList.size > HISTORY_MAX_SIZE)
-                    tmpTermsList.poll()
-
+                tmpTermsList.add(searchTerms)
                 saveSearchTermsHistory(tmpTermsList)
 
-                tmpTermsList
+                tmpTermsList.toList()
             }.await()
         }.stateIn(
             scope = viewModelScope,
             started = WhileSubscribed(3000),
-            initialValue = LinkedList()
+            initialValue = emptyList()
         )
 
-    private val flowPagingSource = MutableStateFlow(ImageSearchResultPagedDataSource(
-        repository = repository,
-        searchTerms = currentState.searchTerms,
-        onLoading = { setState { copy(loadState = LoadingStatus.Loading) } },
-        onLoadingFinish = { setState { copy(loadState = LoadingStatus.Success) } },
-        onLoadingFail = { setState { copy(loadState = LoadingStatus.Error(it)) } }
-    ))
+    private val flowPagingSource = MutableStateFlow(getImageSearchResultPagedDataSourceInstance())
 
     val pagingFlow = flowPagingSource.flatMapLatest {
         Pager(
@@ -86,21 +68,21 @@ class MainViewModel @Inject constructor(
         ).flow.cachedIn(viewModelScope)
     }
 
-    private suspend fun saveSearchTermsHistory(value: LinkedList<String>) =
+    private suspend fun saveSearchTermsHistory(value: LRUCache<String>) =
         withContext(Dispatchers.IO) {
             if (!value.isEmpty()) {
                 repository.saveHistoryTerms(value)
             }
         }
 
-    private suspend fun getSearchTermsHistory(): LinkedList<String> =
+    private suspend fun getSearchTermsHistory(): LRUCache<String> =
         withContext(Dispatchers.IO) { repository.getHistoryTerms() }
 
     fun updateSearchTerms(terms: String) {
         setState { copy(searchTerms = terms) }
 
         viewModelScope.launch {
-            flowPagingSource.emit(ImageSearchResultPagedDataSource(repository, terms))
+            flowPagingSource.emit(getImageSearchResultPagedDataSourceInstance())
         }
     }
 
@@ -111,4 +93,12 @@ class MainViewModel @Inject constructor(
     fun retry() {
 //        dataSourceFactory.dataSource.retry()
     }
+
+    private fun getImageSearchResultPagedDataSourceInstance(
+        repository: Repository = this.repository,
+        searchTerms: String = currentState.searchTerms,
+        onLoading:()->Unit = { setState { copy(loadState = LoadingStatus.Loading) }.also { Timber.d("Loading") } },
+        onLoadingFinish:()->Unit = { setState { copy(loadState = LoadingStatus.Success) }.also { Timber.d("Success")  }},
+        onLoadingFail:(String?)->Unit = { setState { copy(loadState = LoadingStatus.Error(it)) }.also { Timber.d("Error!!")  }},
+    ) = ImageSearchResultPagedDataSource(repository, searchTerms, onLoading, onLoadingFinish, onLoadingFail)
 }

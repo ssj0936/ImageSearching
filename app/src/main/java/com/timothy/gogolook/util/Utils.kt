@@ -10,6 +10,8 @@ import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.timothy.gogolook.R
+import java.util.LinkedList
+import java.util.PriorityQueue
 
 @BindingAdapter("url")
 fun setImage(image: ImageView, url: String?) {
@@ -34,3 +36,27 @@ val Fragment.windowWidth: Int
             resources.displayMetrics.widthPixels - insets.left - insets.right
         }
     }
+
+abstract class LRUCache<T>{
+    val capacity = HISTORY_MAX_SIZE
+    abstract fun add(el:T)
+    abstract fun toList():List<T>
+    abstract fun isEmpty():Boolean
+    abstract val size:Int
+}
+
+class LRUCacheImpl<T>(list: LinkedList<T> = LinkedList()): LRUCache<T>() {
+    private val linkedList = list
+    override val size: Int
+        get() = linkedList.size
+
+    override fun add(el: T) {
+        linkedList.remove(el)
+        linkedList.offer(el)
+
+        while(linkedList.size > capacity)
+            linkedList.poll()
+    }
+    override fun toList(): List<T> = linkedList.toList()
+    override fun isEmpty(): Boolean = (size==0)
+}

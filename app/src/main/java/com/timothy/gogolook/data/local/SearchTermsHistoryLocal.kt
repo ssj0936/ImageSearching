@@ -5,6 +5,8 @@ import android.content.Context
 import com.timothy.gogolook.data.SearchTermsHistoryService
 import com.timothy.gogolook.util.HISTORY_PREF_KEY
 import com.timothy.gogolook.util.HISTORY_PREF_VALUE
+import com.timothy.gogolook.util.LRUCache
+import com.timothy.gogolook.util.LRUCacheImpl
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.*
 import javax.inject.Inject
@@ -14,28 +16,20 @@ class SearchTermsHistoryLocal @Inject constructor(
 ):SearchTermsHistoryService {
     private val separator = ",,"
 
-    override fun saveHistoryTerms(termsList:Queue<String>,size:Int){
-        while (termsList.size>size)
-            termsList.poll()
-
+    override fun saveHistoryTerms(termsList: LRUCache<String>, size:Int){
         context.getSharedPreferences(HISTORY_PREF_KEY,MODE_PRIVATE)
             .edit()
-            .putString(HISTORY_PREF_VALUE, termsList.joinToString(separator = separator))
-            .commit()
+            .putString(HISTORY_PREF_VALUE, termsList.toList().joinToString(separator = separator))
+            .apply()
     }
 
-    override fun getHistoryTerms():LinkedList<String>{
+    override fun getHistoryTerms():LRUCache<String>{
         val historyTermsString = context.getSharedPreferences(HISTORY_PREF_KEY,MODE_PRIVATE)
             .getString(HISTORY_PREF_VALUE, null)
 
-        val queue = LinkedList<String>()
-
-        return if(historyTermsString.isNullOrEmpty()) queue
-        else{
-            historyTermsString.split(separator).forEach {
-                queue.offer(it)
-            }
-            queue
-        }
+        return if(historyTermsString.isNullOrEmpty())
+            LRUCacheImpl()
+        else
+            LRUCacheImpl(LinkedList(historyTermsString.split(separator)))
     }
 }
