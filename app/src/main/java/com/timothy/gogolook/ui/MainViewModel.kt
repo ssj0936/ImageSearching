@@ -17,9 +17,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -71,16 +73,14 @@ class MainViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    private val flowPagingSource = MutableStateFlow(getImageSearchResultPagedDataSourceInstance())
-
-    val pagingFlow = flowPagingSource.flatMapLatest {
+    val pagingFlow = uiState.map { it.searchTerms }.distinctUntilChanged().flatMapLatest{
         Pager(
             config = PagingConfig(
                 pageSize = IMAGE_SEARCH_PAGE_SIZE
             ),
-            pagingSourceFactory = { it }
-        ).flow.cachedIn(viewModelScope)
-    }
+            pagingSourceFactory = { getImageSearchResultPagedDataSourceInstance(searchTerms = it) }
+        ).flow
+    }.cachedIn(viewModelScope)
 
     private suspend fun saveSearchTermsHistory(value: LRUCache<String>) =
         withContext(Dispatchers.IO) {
@@ -94,10 +94,6 @@ class MainViewModel @Inject constructor(
 
     fun updateSearchTerms(terms: String) {
         setState { copy(searchTerms = terms) }
-
-        viewModelScope.launch {
-            flowPagingSource.emit(getImageSearchResultPagedDataSourceInstance())
-        }
     }
 
     fun toggleRecyclerViewLayout(isGrid:Boolean){
