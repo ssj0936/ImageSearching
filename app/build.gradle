@@ -117,6 +117,7 @@ dependencies {
     implementation "com.github.bumptech.glide:glide:$version_glide"
     kapt "com.github.bumptech.glide:compiler:$version_glide"
     implementation "com.github.bumptech.glide:okhttp3-integration:$version_glide"
+    implementation "com.github.bumptech.glide:compose:1.0.0-beta01"
 
     //Paging
     implementation "androidx.paging:paging-runtime-ktx:$version_paging"

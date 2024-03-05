@@ -82,3 +82,5 @@ data class HitsItem(
 	@field:SerializedName("likes")
 	val likes: Int? = null
 )
+
+
