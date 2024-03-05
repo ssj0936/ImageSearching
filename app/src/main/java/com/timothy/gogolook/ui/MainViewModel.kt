@@ -57,6 +57,7 @@ class MainViewModel @Inject constructor(
             is UIEvent.OnSearch->{}
             is UIEvent.OnLayoutToggle->{
                 toggleRecyclerViewLayout(event.isGrid)
+                Timber.d("toggleRecyclerViewLayout $event")
             }
             else->{}
         }
