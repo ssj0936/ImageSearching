@@ -1,4 +1,4 @@
-package com.timothy.gogolook.data
+package com.timothy.gogolook.data.local
 
 import com.timothy.gogolook.util.HISTORY_MAX_SIZE
 import com.timothy.gogolook.util.LRUCache

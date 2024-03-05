@@ -22,7 +22,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
 import com.timothy.gogolook.R
 import com.timothy.gogolook.data.model.HitsItem
-import com.timothy.gogolook.data.model.LoadingStatus
 import com.timothy.gogolook.databinding.MainFragmentBinding
 import com.timothy.gogolook.ui.adapters.ImageSearchResultListAdapter
 import com.timothy.gogolook.ui.adapters.LayoutType
@@ -34,7 +33,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import timber.log.Timber
 
 @AndroidEntryPoint
 class MainFragment : Fragment() {
@@ -104,10 +102,8 @@ class MainFragment : Fragment() {
         with(displayBtnGroup) {
             this.addOnButtonCheckedListener { _, checkedId, isChecked ->
                 if (isChecked) {
-                    mainViewModel.toggleRecyclerViewLayout(isGrid = (checkedId == R.id.display_type_grid))
-                    recyclerView.apply {
-                        startAnimation(animSet)
-                    }
+                    mainViewModel.setEvent(UIEvent.OnLayoutToggle(checkedId == R.id.display_type_grid))
+                    mainViewModel.setEffect(UIEffect.OnLoadingSuccess)
                 }
             }
 
@@ -187,6 +183,19 @@ class MainFragment : Fragment() {
 
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                //
+                launch {
+                    mainViewModel.uiEffect.collect{effect->
+                        when(effect){
+                            is UIEffect.OnLoadingSuccess->{
+                                recyclerView.startAnimation(animSet)
+                            }
+                            else->{}
+                        }
+                    }
+                }
+
+
                 //paging
                 launch {
                     pagingFlow.collectLatest { pagingData ->

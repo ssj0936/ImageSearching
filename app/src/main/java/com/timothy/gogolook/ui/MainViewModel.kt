@@ -14,17 +14,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 
 data class UIState(
@@ -34,10 +33,12 @@ data class UIState(
 
 sealed class UIEvent:ViewModelEvent{
     data class OnSearch(val searchTerm:String):UIEvent()
+    data class OnLayoutToggle(val isGrid: Boolean):UIEvent()
 }
 
 sealed class UIEffect:ViewModelEffect{
     data class OnSnackBarShow(val msg:String):UIEffect()
+    object OnLoadingSuccess:UIEffect()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -54,6 +55,9 @@ class MainViewModel @Inject constructor(
     override fun handleEvent(event: UIEvent) {
         when(event){
             is UIEvent.OnSearch->{}
+            is UIEvent.OnLayoutToggle->{
+                toggleRecyclerViewLayout(event.isGrid)
+            }
             else->{}
         }
     }

@@ -1,7 +1,7 @@
 package com.timothy.gogolook.di
 
-import com.timothy.gogolook.data.SearchTermsHistoryService
-import com.timothy.gogolook.data.local.SearchTermsHistoryLocal
+import com.timothy.gogolook.data.local.SearchTermsHistoryService
+import com.timothy.gogolook.data.local.SearchTermsHistoryImpl
 import com.timothy.gogolook.data.network.PixabayService
 import dagger.Binds
 import dagger.Module
@@ -33,5 +33,5 @@ object ModuleProvide {
 abstract class ModuleBinds {
     @Singleton
     @Binds
-    abstract fun provideSearchTermsHistoryService(impl:SearchTermsHistoryLocal): SearchTermsHistoryService
+    abstract fun provideSearchTermsHistoryService(impl:SearchTermsHistoryImpl): SearchTermsHistoryService
 }

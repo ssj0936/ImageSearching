@@ -1,6 +1,5 @@
 package com.timothy.gogolook.util
 
-import android.content.res.Resources.getSystem
 import android.os.Build
 import android.view.WindowInsets
 import android.widget.ImageView
@@ -11,7 +10,6 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.timothy.gogolook.R
 import java.util.LinkedList
-import java.util.PriorityQueue
 
 @BindingAdapter("url")
 fun setImage(image: ImageView, url: String?) {

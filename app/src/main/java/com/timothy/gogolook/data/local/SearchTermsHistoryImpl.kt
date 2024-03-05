@@ -2,7 +2,6 @@ package com.timothy.gogolook.data.local
 
 import android.content.Context.MODE_PRIVATE
 import android.content.Context
-import com.timothy.gogolook.data.SearchTermsHistoryService
 import com.timothy.gogolook.util.HISTORY_PREF_KEY
 import com.timothy.gogolook.util.HISTORY_PREF_VALUE
 import com.timothy.gogolook.util.LRUCache
@@ -11,9 +10,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.*
 import javax.inject.Inject
 
-class SearchTermsHistoryLocal @Inject constructor(
+class SearchTermsHistoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
-):SearchTermsHistoryService {
+): SearchTermsHistoryService {
     private val separator = ",,"
 
     override fun saveHistoryTerms(termsList: LRUCache<String>, size:Int){
