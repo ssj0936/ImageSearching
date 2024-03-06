@@ -1,9 +1,16 @@
 package com.timothy.gogolook.ui.widget
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -13,20 +20,29 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,18 +51,28 @@ import com.timothy.gogolook.ui.MainViewModel
 import com.timothy.gogolook.ui.UIEvent
 import com.timothy.gogolook.util.LAYOUT_TYPE_GRID
 import com.timothy.gogolook.util.LAYOUT_TYPE_LINEAR
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import timber.log.Timber
 
 
 @Composable
 fun SearchBar(
     modifier: Modifier = Modifier,
-) {
+    viewModel: MainViewModel = hiltViewModel(),
+
+    ) {
     Row(
-        modifier = modifier,
+        modifier = modifier
+            .height(intrinsicSize = IntrinsicSize.Max)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        SearchInput(modifier = Modifier.weight(1f))
+        SearchInput(
+            modifier = Modifier.weight(1f),
+            initString = viewModel.currentState.searchTerms,
+            onSearch = { viewModel.setEvent(UIEvent.OnSearch(it)) }
+        )
         Spacer(modifier = Modifier.width(4.dp))
         SegmentedButtons(options = layoutOptions)
     }
@@ -55,13 +81,13 @@ fun SearchBar(
 @Composable
 fun SearchInput(
     modifier: Modifier = Modifier,
-    viewModel: MainViewModel = hiltViewModel()
+    initString: String,
+    onSearch: (String) -> Unit = {}
 ) {
     var text by remember {
-        mutableStateOf(viewModel.currentState.searchTerms)
+        mutableStateOf(initString)
     }
     val keyboardController = LocalSoftwareKeyboardController.current
-
 
     val trailingIcon = @Composable {
         IconButton(
@@ -76,6 +102,13 @@ fun SearchInput(
     }
     Box(modifier = modifier) {
         TextField(
+            modifier = Modifier,
+            shape = RoundedCornerShape(14.dp),
+            colors = TextFieldDefaults.colors().copy(
+                focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
             value = text,
             onValueChange = { text = it },
             label = { Text("SearchTerm") },
@@ -86,12 +119,28 @@ fun SearchInput(
             keyboardActions = KeyboardActions(
                 onSearch = {
                     Timber.d("onSearch")
-                    viewModel.setEvent(UIEvent.OnSearch(text))
+                    onSearch(text)
                     keyboardController?.hide()
                 }
             ),
-            trailingIcon = if(text.isEmpty()) null else trailingIcon
+            trailingIcon = if (text.isEmpty()) null else trailingIcon,
         )
+    }
+}
+
+@Preview(showSystemUi = true)
+@Composable
+fun SearchInputEmptyPreview() {
+    MaterialTheme {
+        SearchInput(initString = "")
+    }
+}
+
+@Preview(showSystemUi = true)
+@Composable
+fun SearchInputPreview() {
+    MaterialTheme {
+        SearchInput(initString = "Good")
     }
 }
 
@@ -115,23 +164,46 @@ fun SegmentedButtons(
     modifier: Modifier = Modifier,
     options: List<ToggleButtonOption>,
     borderStrokeWidth: Dp = 1.dp,
-    roundedCornerPercent: Int = 50,
+    roundedCornerPercent: Int? = null,
+    roundedCornerDp: Dp? = 14.dp,
     viewModel: MainViewModel = hiltViewModel()
 ) {
     if (options.isEmpty()) return
 
-    Row(modifier = modifier) {
-        options.forEachIndexed { i, option ->
-            val shape = when (i) {
-                0 -> RoundedCornerShape(
-                    topStartPercent = roundedCornerPercent,
-                    bottomStartPercent = roundedCornerPercent
-                )
+    val isGrid by viewModel.uiState.map { it.isGrid }.collectAsState(initial = true)
 
-                options.lastIndex -> RoundedCornerShape(
-                    topEndPercent = roundedCornerPercent,
-                    bottomEndPercent = roundedCornerPercent
-                )
+    Row(modifier = modifier.fillMaxHeight()) {
+        options.forEachIndexed { i, option ->
+            val selected = (isGrid && option.value == LAYOUT_TYPE_GRID) || (!isGrid && option.value == LAYOUT_TYPE_LINEAR)
+
+            val shape = when (i) {
+                0 -> if (roundedCornerPercent != null) {
+                    RoundedCornerShape(
+                        topStartPercent = roundedCornerPercent,
+                        bottomStartPercent = roundedCornerPercent
+                    )
+                } else if (roundedCornerDp != null) {
+                    RoundedCornerShape(
+                        topStart = roundedCornerDp,
+                        bottomStart = roundedCornerDp,
+                    )
+                } else {
+                    return
+                }
+
+                options.lastIndex -> if (roundedCornerPercent != null) {
+                    RoundedCornerShape(
+                        topEndPercent = roundedCornerPercent,
+                        bottomEndPercent = roundedCornerPercent
+                    )
+                } else if (roundedCornerDp != null) {
+                    RoundedCornerShape(
+                        topEnd = roundedCornerDp,
+                        bottomEnd = roundedCornerDp,
+                    )
+                } else {
+                    return
+                }
 
                 else -> RoundedCornerShape(0)
             }
@@ -141,15 +213,25 @@ fun SegmentedButtons(
             )
 
             OutlinedButton(
-                modifier = optionModifier,
+                modifier = optionModifier.fillMaxHeight(),
+                colors = ButtonDefaults.outlinedButtonColors().copy(
+                    containerColor = if (selected)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else ButtonDefaults.outlinedButtonColors().containerColor
+                ),
                 onClick = {
                     viewModel.setEvent(UIEvent.OnLayoutToggle(option.value == LAYOUT_TYPE_GRID))
                 },
                 shape = shape,
-                border = ButtonDefaults.outlinedButtonBorder.copy(width = borderStrokeWidth)
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    width = borderStrokeWidth,
+                    brush = SolidColor(
+                        if(selected) Color.Transparent else MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if(option.title.isNotEmpty())
+                    if (option.title.isNotEmpty())
                         Text(text = option.title)
 
                     option.iconId?.let {
