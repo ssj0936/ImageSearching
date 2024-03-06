@@ -64,6 +64,10 @@ fun SearchResultList(
         }
     }
 
+    LaunchedEffect(true){
+        mainViewModel.setEvent(UIEvent.OnSearch(mainViewModel.currentState.searchTerms))
+    }
+
     Box(modifier = modifier) {
         LazyColumn(state = lazyListState) {
             itemsIndexed(items = dataList) { i, data ->
