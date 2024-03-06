@@ -4,11 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,33 +49,77 @@ fun SearchResultList(
         emptyList()
     )
 
-    val lazyListState = rememberLazyListState()
+    val isGrid by mainViewModel.uiState.map { it.isGrid }.collectAsState(initial = true)
 
-    LaunchedEffect(dataList.size){
-        Timber.d("LaunchedEffect:${dataList.size}")
-        snapshotFlow { lazyListState.firstVisibleItemIndex }.collectLatest {index->
-            Timber.d("$index, ${dataList.size}")
-            if(dataList.isNotEmpty() && index >= dataList.size - 10){
+    val lazyGridState = rememberLazyGridState()
+
+    LaunchedEffect(dataList.size) {
+        snapshotFlow { lazyGridState.firstVisibleItemIndex }.collectLatest { index ->
+            Timber.d("index:$index")
+            if (dataList.isNotEmpty() && index >= dataList.size - 10) {
                 mainViewModel.setEvent(UIEvent.OnLoadNewPage)
             }
         }
     }
 
-    LaunchedEffect(Unit){
-        mainViewModel.uiState.map { it.dataWrapper.page }.distinctUntilChanged().filter { it == 1 }.collectLatest {
-            lazyListState.scrollToItem(0)
-        }
+    LaunchedEffect(Unit) {
+        mainViewModel.uiState.map { it.dataWrapper.page }.distinctUntilChanged().filter { it == 1 }
+            .collectLatest {
+                lazyGridState.scrollToItem(0)
+            }
     }
 
-    LaunchedEffect(true){
+    LaunchedEffect(true) {
         mainViewModel.setEvent(UIEvent.OnSearch(mainViewModel.currentState.searchTerms))
     }
 
     Box(modifier = modifier) {
-        LazyColumn(state = lazyListState) {
+        LazyVerticalGrid(columns = GridCells.Fixed(if (isGrid) 2 else 1), state = lazyGridState) {
             itemsIndexed(items = dataList) { i, data ->
-                ItemLinear(item = data)
+                if (isGrid) {
+                    ItemGrid(item = data)
+                } else
+                    ItemLinear(item = data)
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalGlideComposeApi::class)
+@Composable
+fun ItemGrid(
+    modifier: Modifier = Modifier,
+    item: HitsItem
+) {
+    Column(modifier = modifier) {
+        GlideImage(
+            contentScale = ContentScale.Crop,
+            model = item.webformatURL,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .padding(4.dp)
+                .align(Alignment.CenterHorizontally),
+            failure = placeholder(R.drawable.glide_error_image),
+            transition = CrossFade
+        )
+        Column(
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(text = stringResource(id = R.string.image_info_id, item.id))
+            item.tags?.let { Text(text = stringResource(id = R.string.image_info_tags, it)) }
+            item.views?.let { Text(text = stringResource(id = R.string.image_info_views, it)) }
+            item.downloads?.let {
+                Text(
+                    text = stringResource(
+                        id = R.string.image_info_downloads,
+                        it
+                    )
+                )
+            }
+            item.likes?.let { Text(text = stringResource(id = R.string.image_info_likes, it)) }
         }
     }
 }
@@ -112,5 +159,4 @@ fun ItemLinear(
             item.likes?.let { Text(text = stringResource(id = R.string.image_info_likes, it)) }
         }
     }
-
 }

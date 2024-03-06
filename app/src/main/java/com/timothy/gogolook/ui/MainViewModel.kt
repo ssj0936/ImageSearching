@@ -4,8 +4,8 @@ import androidx.lifecycle.viewModelScope
 import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
-import com.timothy.gogolook.util.LAYOUT_TYPE_GRID
 import com.timothy.gogolook.util.IMAGE_SEARCH_PAGE_SIZE
+import com.timothy.gogolook.util.LAYOUT_TYPE_GRID
 import com.timothy.gogolook.util.LRUCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -14,8 +14,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -61,13 +59,6 @@ class MainViewModel @Inject constructor(
     private var isLoading = MutableStateFlow(false)
     private var pagingState = PagingState()
 
-    init {
-        viewModelScope.launch {
-            uiState.map { it.dataWrapper.dataList }.distinctUntilChanged().collectLatest {
-                Timber.d(it.map {item -> item.id }.toString())
-            }
-        }
-    }
     override fun initState(): UIState =
         UIState(
             searchTerms = "flower yellow",
@@ -79,12 +70,10 @@ class MainViewModel @Inject constructor(
         when (event) {
             is UIEvent.OnSearch -> {
                 onSearch(event.searchTerm)
-                updateSearchTerms(event.searchTerm)
             }
 
             is UIEvent.OnLayoutToggle -> {
                 toggleRecyclerViewLayout(event.isGrid)
-                Timber.d("toggleRecyclerViewLayout $event")
             }
 
             is UIEvent.OnLoadNewPage -> {
@@ -118,10 +107,6 @@ class MainViewModel @Inject constructor(
     private suspend fun getSearchTermsHistory(): LRUCache<String> =
         withContext(Dispatchers.IO) { repository.getHistoryTerms() }
 
-    fun updateSearchTerms(terms: String) {
-        setState { copy(searchTerms = terms) }
-    }
-
     private fun onSearch(terms: String) = viewModelScope.launch {
         setState { copy(searchTerms = terms) }
         val initSize = IMAGE_SEARCH_PAGE_SIZE * 3
@@ -149,7 +134,6 @@ class MainViewModel @Inject constructor(
             isLoading.value = true
 
             val newPage = pagingState.nextPage!!
-            Timber.d("OnLoadNewPage: ($newPage)")
             val resp = repository.getSearchImages(
                 searchTerms = currentState.searchTerms,
                 page = newPage,
@@ -157,19 +141,13 @@ class MainViewModel @Inject constructor(
             )
 
             if (!resp.isSuccessful || resp.body()?.hits == null) {
-                Timber.d(resp.message())
+                Timber.e(resp.message())
             } else {
                 pagingState.apply {
                     prevPage = currPage
                     currPage = newPage
                     nextPage =
                         if (resp.body()!!.hits!!.size < IMAGE_SEARCH_PAGE_SIZE) null else newPage + 1
-                }
-
-                resp.body()!!.hits!!.forEach {newItem ->
-                    val index = currentState.dataWrapper.dataList.indexOfFirst { it.id == newItem.id }
-                    if(index!=-1)
-                        Timber.d("duplicate: ${newItem.id} && list[$index]")
                 }
 
                 val dataList = currentState.dataWrapper.dataList.toMutableList()
