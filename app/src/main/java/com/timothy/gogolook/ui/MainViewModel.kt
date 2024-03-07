@@ -11,6 +11,7 @@ import com.timothy.gogolook.util.LRUCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,22 +97,33 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    val searchTermsHistory: StateFlow<List<String>> =
-        uiState.map { it.searchTerms }.mapLatest { searchTerms ->
-            viewModelScope.async {
-                val tmpTermsList = getSearchTermsHistory()
-                tmpTermsList.add(searchTerms)
-                saveSearchTermsHistory(tmpTermsList)
+//    val searchTermsHistory: StateFlow<List<String>> =
+//        uiState.map { it.searchTerms }.mapLatest { searchTerms ->
+//            viewModelScope.async {
+//                val tmpTermsList = getSearchTermsHistory()
+//                tmpTermsList.add(searchTerms)
+//                saveSearchTermsHistory(tmpTermsList)
+//
+//                tmpTermsList.toList()
+//            }.await()
+//        }.stateIn(
+//            scope = viewModelScope,
+//            started = WhileSubscribed(3000),
+//            initialValue = emptyList()
+//        )
 
-                tmpTermsList.toList()
+    @OptIn(FlowPreview::class)
+    val searchTermsHistoryMatchPrefix:StateFlow<List<String>> = currentTypedFlow.sample(500L)
+        .mapLatest {currTyped->
+            Timber.d("currTyped:$currTyped")
+            viewModelScope.async {
+                getSearchTermsHistory().toList().filter { if(currTyped.isEmpty()) true else it.startsWith(currTyped) }
             }.await()
         }.stateIn(
             scope = viewModelScope,
             started = WhileSubscribed(3000),
             initialValue = emptyList()
         )
-
-    val searchTermsHistoryMatchPrefix:StateFlow<List<String>> = currentTypedFlow.sample(500L).filter { it.isNotEmpty() }
 
     private suspend fun saveSearchTermsHistory(value: LRUCache<String>) =
         withContext(Dispatchers.IO) {
@@ -123,8 +135,19 @@ class MainViewModel @Inject constructor(
     private suspend fun getSearchTermsHistory(): LRUCache<String> =
         withContext(Dispatchers.IO) { repository.getHistoryTerms() }
 
+    private fun saveTermToHistory(searchTerm: String) = viewModelScope.launch {
+        withContext(Dispatchers.IO){
+            val tmpTermsList = getSearchTermsHistory()
+            tmpTermsList.add(searchTerm)
+            saveSearchTermsHistory(tmpTermsList)
+        }
+    }
+
     private fun onSearch(terms: String) = viewModelScope.launch {
         setState { copy(searchTerms = terms) }
+
+        saveTermToHistory(terms)
+
         val initSize = IMAGE_SEARCH_PAGE_SIZE * IMAGE_SEARCH_INITIAL_MULTIPLIER
         val resp =
             repository.getSearchImages(searchTerms = terms, pageSize = initSize)

@@ -1,6 +1,8 @@
 package com.timothy.gogolook.ui.widget
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,9 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -57,14 +63,15 @@ fun SearchBar(
     ) {
     Row(
         modifier = modifier
-            .height(intrinsicSize = IntrinsicSize.Max)
+//            .height(intrinsicSize = IntrinsicSize.Max)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         SearchInput(
             modifier = Modifier.weight(1f),
             initString = viewModel.currentState.searchTerms,
-            onSearch = { viewModel.setEvent(UIEvent.OnSearch(it)) }
+            onSearch = { viewModel.setEvent(UIEvent.OnSearch(it)) },
+            onType = { viewModel.setEvent(UIEvent.OnType(it)) }
         )
         Spacer(modifier = Modifier.width(4.dp))
         SegmentedButtons(options = layoutOptions)
@@ -75,14 +82,18 @@ fun SearchBar(
 fun SearchInput(
     modifier: Modifier = Modifier,
     initString: String,
-    onSearch: (String) -> Unit = {}
+    onSearch: (String) -> Unit = {},
+    onType: (String) -> Unit = {}
+
 ) {
-
-
     var text by remember {
         mutableStateOf(initString)
     }
+    var textFieldFocusState by remember {
+        mutableStateOf(false)
+    }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     val trailingIcon = @Composable {
         IconButton(
@@ -95,9 +106,12 @@ fun SearchInput(
             )
         }
     }
-    Box(modifier = modifier) {
+    Column(modifier = modifier) {
         TextField(
-            modifier = Modifier,
+            modifier = Modifier.onFocusChanged {
+                Timber.d("focus: ${it.hasFocus}, ${it.isFocused}")
+                textFieldFocusState = it.hasFocus
+            },
             shape = RoundedCornerShape(14.dp),
             colors = TextFieldDefaults.colors().copy(
                 focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -105,7 +119,10 @@ fun SearchInput(
                 unfocusedIndicatorColor = Color.Transparent,
             ),
             value = text,
-            onValueChange = { text = it },
+            onValueChange = {
+                text = it
+                onType(it)
+            },
             label = { Text("SearchTerm") },
             singleLine = true,
             keyboardOptions = KeyboardOptions.Default.copy(
@@ -113,13 +130,39 @@ fun SearchInput(
             ),
             keyboardActions = KeyboardActions(
                 onSearch = {
-                    Timber.d("onSearch")
+                    focusManager.clearFocus()
                     onSearch(text)
                     keyboardController?.hide()
                 }
             ),
             trailingIcon = if (text.isEmpty()) null else trailingIcon,
         )
+
+        if (textFieldFocusState) {
+            AutoCompleteDropdown()
+        }
+    }
+}
+
+@Composable
+fun AutoCompleteDropdown(
+    modifier: Modifier = Modifier,
+    viewModel: MainViewModel = hiltViewModel()
+) {
+    val dropdownContentList by viewModel.searchTermsHistoryMatchPrefix.collectAsState()
+
+    Timber.d("dropdownContentList:$dropdownContentList")
+    Box(modifier = modifier) {
+        LazyColumn {
+            items(items = dropdownContentList) { candidate ->
+                Text(
+                    text = candidate,
+                    modifier = Modifier.clickable {
+                        Timber.d(candidate)
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -167,9 +210,10 @@ fun SegmentedButtons(
 
     val isGrid by viewModel.uiState.map { it.isGrid }.collectAsState(initial = true)
 
-    Row(modifier = modifier.fillMaxHeight()) {
+    Row(modifier = modifier) {
         options.forEachIndexed { i, option ->
-            val selected = (isGrid && option.value == LAYOUT_TYPE_GRID) || (!isGrid && option.value == LAYOUT_TYPE_LINEAR)
+            val selected =
+                (isGrid && option.value == LAYOUT_TYPE_GRID) || (!isGrid && option.value == LAYOUT_TYPE_LINEAR)
 
             val shape = when (i) {
                 0 -> if (roundedCornerPercent != null) {
@@ -203,10 +247,12 @@ fun SegmentedButtons(
                 else -> RoundedCornerShape(0)
             }
 
-            val offsetX = with(LocalDensity.current){(if (i == 0) 0.dp else (-borderStrokeWidth * i)).roundToPx()}
+            val offsetX =
+                with(LocalDensity.current) { (if (i == 0) 0.dp else (-borderStrokeWidth * i)).roundToPx() }
 
             OutlinedButton(
-                modifier = Modifier.fillMaxHeight().offset { IntOffset(offsetX,0) },
+                modifier = Modifier
+                    .offset { IntOffset(offsetX, 0) },
                 colors = ButtonDefaults.outlinedButtonColors().copy(
                     containerColor = if (selected)
                         MaterialTheme.colorScheme.primaryContainer
@@ -219,7 +265,7 @@ fun SegmentedButtons(
                 border = ButtonDefaults.outlinedButtonBorder.copy(
                     width = borderStrokeWidth,
                     brush = SolidColor(
-                        if(selected) Color.Transparent else MaterialTheme.colorScheme.primaryContainer
+                        if (selected) Color.Transparent else MaterialTheme.colorScheme.primaryContainer
                     )
                 )
             ) {
