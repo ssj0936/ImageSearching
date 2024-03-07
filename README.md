@@ -5,7 +5,7 @@
 <img src="https://user-images.githubusercontent.com/3841546/134450007-98d3be92-65c9-496c-8fa9-51bb7b07bb9e.png" width="270" height="612">
 </p>
 
-A simple app for user to search images from webapi(pixabay) and providing 2 type of displaymode which are grip and list.
+A simple app for user to search images from webapi(pixabay) and providing 2 type of displaymode which are grid and list.
 Implementation of MVVM architecture using Hilt, Paging, RxJava and Retrofit2
 
 The app has following packages:

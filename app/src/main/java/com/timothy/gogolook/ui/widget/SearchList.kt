@@ -1,5 +1,7 @@
 package com.timothy.gogolook.ui.widget
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +19,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -33,6 +37,9 @@ import com.timothy.gogolook.R
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.ui.MainViewModel
 import com.timothy.gogolook.ui.UIEvent
+import com.timothy.gogolook.util.IMAGE_SEARCH_INITIAL_MULTIPLIER
+import com.timothy.gogolook.util.IMAGE_SEARCH_PAGE_SIZE
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -48,20 +55,33 @@ fun SearchResultList(
     val dataList by mainViewModel.uiState.map { it.dataWrapper.dataList }.collectAsState(
         emptyList()
     )
-
     val isGrid by mainViewModel.uiState.map { it.isGrid }.collectAsState(initial = true)
 
     val lazyGridState = rememberLazyGridState()
+    val animatableValue = remember { Animatable(1f) }
 
+    val transitionTrigger: suspend CoroutineScope.() -> Unit = {
+        animatableValue.snapTo(0f)
+        animatableValue.animateTo(1f, tween(500))
+    }
+
+    //trigger transition animation on first Time
+    LaunchedEffect(dataList.size, isGrid) {
+        if (dataList.size == 0 || dataList.size > (IMAGE_SEARCH_PAGE_SIZE * IMAGE_SEARCH_INITIAL_MULTIPLIER))
+            return@LaunchedEffect
+        transitionTrigger()
+    }
+
+    //trigger on new page loaded
     LaunchedEffect(dataList.size) {
         snapshotFlow { lazyGridState.firstVisibleItemIndex }.collectLatest { index ->
-            Timber.d("index:$index")
             if (dataList.isNotEmpty() && index >= dataList.size - 10) {
                 mainViewModel.setEvent(UIEvent.OnLoadNewPage)
             }
         }
     }
 
+    //scroll to top for each new search round
     LaunchedEffect(Unit) {
         mainViewModel.uiState.map { it.dataWrapper.page }.distinctUntilChanged().filter { it == 1 }
             .collectLatest {
@@ -69,11 +89,12 @@ fun SearchResultList(
             }
     }
 
+    //
     LaunchedEffect(true) {
         mainViewModel.setEvent(UIEvent.OnSearch(mainViewModel.currentState.searchTerms))
     }
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.alpha(animatableValue.value)) {
         LazyVerticalGrid(columns = GridCells.Fixed(if (isGrid) 2 else 1), state = lazyGridState) {
             itemsIndexed(items = dataList) { i, data ->
                 if (isGrid) {

@@ -1,8 +1,5 @@
 package com.timothy.gogolook.ui.widget
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -24,10 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,15 +30,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.timothy.gogolook.R
@@ -51,10 +46,8 @@ import com.timothy.gogolook.ui.MainViewModel
 import com.timothy.gogolook.ui.UIEvent
 import com.timothy.gogolook.util.LAYOUT_TYPE_GRID
 import com.timothy.gogolook.util.LAYOUT_TYPE_LINEAR
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
-
 
 @Composable
 fun SearchBar(
@@ -84,6 +77,8 @@ fun SearchInput(
     initString: String,
     onSearch: (String) -> Unit = {}
 ) {
+
+
     var text by remember {
         mutableStateOf(initString)
     }
@@ -208,12 +203,10 @@ fun SegmentedButtons(
                 else -> RoundedCornerShape(0)
             }
 
-            val optionModifier = Modifier.offset(
-                if (i == 0) 0.dp else (-borderStrokeWidth * i)
-            )
+            val offsetX = with(LocalDensity.current){(if (i == 0) 0.dp else (-borderStrokeWidth * i)).roundToPx()}
 
             OutlinedButton(
-                modifier = optionModifier.fillMaxHeight(),
+                modifier = Modifier.fillMaxHeight().offset { IntOffset(offsetX,0) },
                 colors = ButtonDefaults.outlinedButtonColors().copy(
                     containerColor = if (selected)
                         MaterialTheme.colorScheme.primaryContainer

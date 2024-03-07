@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.timothy.gogolook.data.Repository
 import com.timothy.gogolook.data.model.HitsItem
 import com.timothy.gogolook.util.DEFAULT_LAYOUT_TYPE
+import com.timothy.gogolook.util.IMAGE_SEARCH_INITIAL_MULTIPLIER
 import com.timothy.gogolook.util.IMAGE_SEARCH_PAGE_SIZE
 import com.timothy.gogolook.util.LAYOUT_TYPE_GRID
 import com.timothy.gogolook.util.LRUCache
@@ -11,11 +12,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,14 +33,16 @@ data class DataWrapper(
 
 data class UIState(
     val searchTerms: String,
+    val currentTypedString: String,
     val isGrid: Boolean,
-    val dataWrapper: DataWrapper
+    val dataWrapper: DataWrapper,
 ) : ViewModelState
 
 sealed class UIEvent : ViewModelEvent {
     data class OnSearch(val searchTerm: String) : UIEvent()
     object OnLoadNewPage : UIEvent()
     data class OnLayoutToggle(val isGrid: Boolean) : UIEvent()
+    data class OnType(val typed: String) : UIEvent()
 }
 
 sealed class UIEffect : ViewModelEffect {
@@ -59,9 +65,12 @@ class MainViewModel @Inject constructor(
     private var isLoading = MutableStateFlow(false)
     private var pagingState = PagingState()
 
+    private val currentTypedFlow = MutableStateFlow<String>("")
+
     override fun initState(): UIState =
         UIState(
             searchTerms = "flower yellow",
+            currentTypedString = "",
             isGrid = DEFAULT_LAYOUT_TYPE == LAYOUT_TYPE_GRID,
             dataWrapper = DataWrapper()
         )
@@ -79,6 +88,11 @@ class MainViewModel @Inject constructor(
             is UIEvent.OnLoadNewPage -> {
                 onLoadNewPage()
             }
+
+            is UIEvent.OnType ->{
+                currentTypedFlow.value = event.typed
+            }
+
         }
     }
 
@@ -97,6 +111,8 @@ class MainViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    val searchTermsHistoryMatchPrefix:StateFlow<List<String>> = currentTypedFlow.sample(500L).filter { it.isNotEmpty() }
+
     private suspend fun saveSearchTermsHistory(value: LRUCache<String>) =
         withContext(Dispatchers.IO) {
             if (!value.isEmpty()) {
@@ -109,7 +125,7 @@ class MainViewModel @Inject constructor(
 
     private fun onSearch(terms: String) = viewModelScope.launch {
         setState { copy(searchTerms = terms) }
-        val initSize = IMAGE_SEARCH_PAGE_SIZE * 3
+        val initSize = IMAGE_SEARCH_PAGE_SIZE * IMAGE_SEARCH_INITIAL_MULTIPLIER
         val resp =
             repository.getSearchImages(searchTerms = terms, pageSize = initSize)
 
